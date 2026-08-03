@@ -1,0 +1,87 @@
+/* Phase 15: Comfortable On-Screen Bill Editing */
+/* These rules ONLY apply to the screen view, leaving print pixel-identical to the original reference invoice. */
+
+@media screen {
+  /* Generic inputs */
+  input, select, textarea {
+    font-size: 13.5px;
+    padding: 6px 4px;
+  }
+  
+  /* Company Header Info */
+  .co-name {
+    font-size: 26px; /* up from 22px */
+  }
+  .co-row input, .co-row textarea {
+    font-size: 13px; /* up from 11.5px */
+  }
+  .co-row textarea {
+    height: 38px;
+  }
+  .meta-tbl input {
+    font-size: 13px; /* up from 12px */
+  }
+
+  /* Info Grid (Bill To / Payment) */
+  .i-row input, .i-row select, .i-row textarea {
+    font-size: 13.5px; /* up from 12px */
+  }
+  .i-lbl {
+    font-size: 12.5px; /* up from 11.5px */
+  }
+  .i-row textarea {
+    height: 42px; /* up from 30px */
+  }
+
+  /* Place of Supply bar */
+  .pos-bar {
+    padding: 10px 14px;
+    font-size: 13px; /* up from 11.5px */
+  }
+  
+  /* Items Table */
+  table.itbl td input, table.itbl td select {
+    font-size: 13px; /* up from 11px */
+    padding: 5px 3px;
+  }
+  table.itbl td.nc input {
+    font-size: 13.5px; /* up from 11.5px */
+  }
+  table.itbl td {
+    padding: 8px 6px; /* up from 5px 4px */
+  }
+  table.itbl thead th {
+    padding: 10px 6px; /* up from 7px 5px */
+    font-size: 10.5px; /* up from 9.5px */
+  }
+
+  /* Totals */
+  .tot-row {
+    padding: 6px 8px;
+    font-size: 13.5px; /* up from 12px */
+  }
+  .tot-grand {
+    padding: 12px 14px; /* up from 9px 12px */
+  }
+  .tot-grand .tl {
+    font-size: 14px; /* up from 12.5px */
+  }
+  .tot-grand .tv {
+    font-size: 17px; /* up from 15px */
+  }
+  
+  /* Terms and Notes */
+  .tn-col textarea {
+    font-size: 13px; /* up from 11px */
+    height: 80px; /* up from 68px */
+    padding: 8px;
+  }
+  
+  /* Signature */
+  .sign-row {
+    margin-top: 36px;
+  }
+  .sign-for {
+    font-size: 13.5px; /* up from 12px */
+  }
+}
