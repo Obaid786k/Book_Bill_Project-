@@ -1,0 +1,20 @@
+:root {
+  --navy: #1B3A6B;      /* Tally-style deep blue — trust, financial */
+  --navy-dk: #122A52;
+  --navy-lt: #2756A0;
+  --ink: #0F1C2E;
+  --ink2: #4A5568;
+  --ink3: #8A9BAE;
+  --bg: #EEF2F8;
+  --paper: #FFFFFF;
+  --border: #CBD8EA;
+  --border2: #E2EAF4;
+  --gold: #B45309;
+  --gold-bg: #FFFBEB;
+  --red: #C53030;
+  --red-bg: #FEF2F2;
+  --green: #276749;
+  --row-alt: #F7F9FC;
+  --f-body: 'Inter', sans-serif;
+  --f-mono: 'Roboto Mono', monospace;
+}
