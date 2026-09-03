@@ -11,10 +11,20 @@ import { passwordSchema } from '../../lib/validation';
 
 const resetSchema = z.object({
   password: passwordSchema,
-  confirmPassword: z.string()
-}).refine((data) => data.password === data.confirmPassword, {
-  message: "Passwords don't match",
-  path: ["confirmPassword"],
+  confirmPassword: passwordSchema,
+}).superRefine((data, ctx) => {
+  if (data.password !== data.confirmPassword) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Passwords don't match",
+      path: ["confirmPassword"],
+    });
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Passwords don't match",
+      path: ["password"],
+    });
+  }
 });
 
 const ResetPassword = () => {
@@ -95,6 +105,7 @@ const ResetPassword = () => {
           autoComplete="new-password"
           {...register('confirmPassword')}
           error={errors.confirmPassword?.message}
+          hint="Must be at least 6 characters with uppercase, lowercase, number & symbol."
         />
         
         {errors.root && (

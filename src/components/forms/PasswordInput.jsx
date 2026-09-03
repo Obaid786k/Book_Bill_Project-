@@ -38,11 +38,8 @@ export const PasswordInput = forwardRef(({
           {visible ? <Eye size={14} /> : <EyeOff size={14} />}
         </button>
       </div>
-      {error ? (
-        <span className="text-red text-[10px] mt-0.5">{error}</span>
-      ) : hint ? (
-        <span className="text-ink3 text-[10px] mt-0.5">{hint}</span>
-      ) : null}
+      {error && <span className="text-red text-[10px] mt-0.5">{error}</span>}
+      {hint && <span className="text-ink3 text-[10px] mt-0.5">{hint}</span>}
     </div>
   );
 });

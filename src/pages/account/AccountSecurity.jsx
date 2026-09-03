@@ -2,11 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { accountService } from '../../services/accountService';
 import { Card } from '../../components/common/Card';
 import { Button } from '../../components/common/Button';
-import { MonitorSmartphone, MapPin, Key, ShieldAlert, Eye, EyeOff } from 'lucide-react';
+import { MonitorSmartphone, MapPin, Key, ShieldAlert } from 'lucide-react';
 import { settingsService } from '../../services/settingsService';
 import { useToast } from '../../components/feedback/Toast';
 import { Dialog } from '../../components/common/Dialog';
 import { validatePassword } from '../../lib/validation';
+import { PasswordInput } from '../../components/forms/PasswordInput';
 
 export const AccountSecurity = () => {
   const [data, setData] = useState(null);
@@ -19,31 +20,40 @@ export const AccountSecurity = () => {
     newPassword: '',
     confirmPassword: ''
   });
-  const [visibleFields, setVisibleFields] = useState({
-    oldPassword: false,
-    newPassword: false,
-    confirmPassword: false
-  });
-  const toggleVisible = (field) => setVisibleFields(v => ({ ...v, [field]: !v[field] }));
+  const [fieldErrors, setFieldErrors] = useState({});
 
   const handleChange = (e) => {
-    setPasswords(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    const { name, value } = e.target;
+    setPasswords(prev => ({ ...prev, [name]: value }));
+    setFieldErrors(prev => ({ ...prev, [name]: null }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setFieldErrors({});
+
     if (!passwords.newPassword) {
+      setFieldErrors({ newPassword: 'Please enter a new password.' });
       toast('Please enter a new password.');
       return;
     }
-    if (passwords.newPassword !== passwords.confirmPassword) {
-      toast('New passwords do not match!');
-      return;
-    }
-    
+
     const validation = validatePassword(passwords.newPassword);
     if (!validation.isValid) {
+      setFieldErrors({
+        newPassword: validation.error,
+        confirmPassword: validation.error,
+      });
       toast(validation.error);
+      return;
+    }
+
+    if (passwords.newPassword !== passwords.confirmPassword) {
+      setFieldErrors({
+        newPassword: "Passwords don't match",
+        confirmPassword: "Passwords don't match",
+      });
+      toast('New passwords do not match!');
       return;
     }
 
@@ -53,6 +63,7 @@ export const AccountSecurity = () => {
       await settingsService.changePassword(passwords.oldPassword, passwords.newPassword);
       toast('Password changed successfully.');
       setPasswords({ oldPassword: '', newPassword: '', confirmPassword: '' });
+      setFieldErrors({});
       setIsPasswordModalOpen(false);
     } catch (err) {
       toast(err.message || 'Failed to change password.');
@@ -159,75 +170,35 @@ export const AccountSecurity = () => {
         title="Change Password"
       >
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-[13px] font-bold text-navy mb-1.5">Current Password</label>
-            <div className="relative">
-              <input 
-                type={visibleFields.oldPassword ? 'text' : 'password'}
-                name="oldPassword"
-                value={passwords.oldPassword}
-                onChange={handleChange}
-                required
-                className="w-full border border-bb rounded p-2.5 pr-9 text-sm outline-none focus:border-navy transition-colors bg-white"
-              />
-              <button
-                type="button"
-                tabIndex={-1}
-                onClick={() => toggleVisible('oldPassword')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-ink3 hover:text-navy transition-colors"
-                aria-label={visibleFields.oldPassword ? 'Hide password' : 'Show password'}
-              >
-                {visibleFields.oldPassword ? <EyeOff size={15} /> : <Eye size={15} />}
-              </button>
-            </div>
-          </div>
-          <div>
-            <label className="block text-[13px] font-bold text-navy mb-1.5">New Password</label>
-            <div className="relative">
-              <input 
-                type={visibleFields.newPassword ? 'text' : 'password'}
-                name="newPassword"
-                value={passwords.newPassword}
-                onChange={handleChange}
-                required
-                className="w-full border border-bb rounded p-2.5 pr-9 text-sm outline-none focus:border-navy transition-colors bg-white"
-              />
-              <button
-                type="button"
-                tabIndex={-1}
-                onClick={() => toggleVisible('newPassword')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-ink3 hover:text-navy transition-colors"
-                aria-label={visibleFields.newPassword ? 'Hide password' : 'Show password'}
-              >
-                {visibleFields.newPassword ? <EyeOff size={15} /> : <Eye size={15} />}
-              </button>
-            </div>
-            <p className="text-[11px] text-ink3 mt-1">
-              Must be at least 6 characters with uppercase, lowercase, number & symbol.
-            </p>
-          </div>
-          <div>
-            <label className="block text-[13px] font-bold text-navy mb-1.5">Confirm New Password</label>
-            <div className="relative">
-              <input 
-                type={visibleFields.confirmPassword ? 'text' : 'password'}
-                name="confirmPassword"
-                value={passwords.confirmPassword}
-                onChange={handleChange}
-                required
-                className="w-full border border-bb rounded p-2.5 pr-9 text-sm outline-none focus:border-navy transition-colors bg-white"
-              />
-              <button
-                type="button"
-                tabIndex={-1}
-                onClick={() => toggleVisible('confirmPassword')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-ink3 hover:text-navy transition-colors"
-                aria-label={visibleFields.confirmPassword ? 'Hide password' : 'Show password'}
-              >
-                {visibleFields.confirmPassword ? <EyeOff size={15} /> : <Eye size={15} />}
-              </button>
-            </div>
-          </div>
+          <PasswordInput 
+            label="Current Password"
+            name="oldPassword"
+            value={passwords.oldPassword}
+            onChange={handleChange}
+            placeholder="••••••••"
+            required
+            error={fieldErrors.oldPassword}
+          />
+          <PasswordInput 
+            label="New Password"
+            name="newPassword"
+            value={passwords.newPassword}
+            onChange={handleChange}
+            placeholder="••••••••"
+            required
+            error={fieldErrors.newPassword}
+            hint="Must be at least 6 characters with uppercase, lowercase, number & symbol."
+          />
+          <PasswordInput 
+            label="Confirm New Password"
+            name="confirmPassword"
+            value={passwords.confirmPassword}
+            onChange={handleChange}
+            placeholder="••••••••"
+            required
+            error={fieldErrors.confirmPassword}
+            hint="Must be at least 6 characters with uppercase, lowercase, number & symbol."
+          />
           
           <div className="pt-2 flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => setIsPasswordModalOpen(false)}>

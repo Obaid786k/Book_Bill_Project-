@@ -13,11 +13,21 @@ const signupSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
   email: z.string().email('Invalid email address'),
   password: passwordSchema,
-  confirmPassword: z.string(),
+  confirmPassword: passwordSchema,
   terms: z.literal(true, { message: "You must accept the terms and conditions" }),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: "Passwords don't match",
-  path: ["confirmPassword"],
+}).superRefine((data, ctx) => {
+  if (data.password !== data.confirmPassword) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Passwords don't match",
+      path: ["confirmPassword"],
+    });
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Passwords don't match",
+      path: ["password"],
+    });
+  }
 });
 
 const Signup = () => {
@@ -88,6 +98,7 @@ const Signup = () => {
           autoComplete="new-password"
           {...register('confirmPassword')}
           error={errors.confirmPassword?.message}
+          hint="Must be at least 6 characters with uppercase, lowercase, number & symbol."
         />
 
         <div className="flex items-start gap-2 mt-1">
