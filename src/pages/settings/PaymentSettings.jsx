@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { settingsService } from '../../services/settingsService';
 import { Card } from '../../components/common/Card';
+import { Skeleton } from '../../components/feedback/Skeleton';
 
 export const PaymentSettings = () => {
   const [profile, setProfile] = useState(null);
@@ -16,9 +17,14 @@ export const PaymentSettings = () => {
       setSaveStatus('Saving...');
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
       saveTimerRef.current = setTimeout(async () => {
-        await settingsService.savePaymentSettings(data);
-        setSaveStatus('Saved');
-        setTimeout(() => setSaveStatus(''), 2000);
+        try {
+          await settingsService.savePaymentSettings(data);
+          setSaveStatus('Saved');
+          setTimeout(() => setSaveStatus(''), 2000);
+        } catch {
+          setSaveStatus('Save failed — try again');
+          setTimeout(() => setSaveStatus(''), 3000);
+        }
       }, 1500);
     },
     []
@@ -33,7 +39,24 @@ export const PaymentSettings = () => {
     });
   };
 
-  if (!profile) return <div className="p-8">Loading...</div>;
+  if (!profile) return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between mb-8">
+        <div className="space-y-2">
+          <Skeleton className="h-7 w-44" />
+          <Skeleton className="h-4 w-72" />
+        </div>
+      </div>
+      <Card className="p-6"><Skeleton className="h-4 w-40 mb-6" /><Skeleton className="h-9 w-48" /></Card>
+      <Card className="p-6">
+        <Skeleton className="h-4 w-48 mb-6" />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <Skeleton className="h-9 md:col-span-2" />
+          <Skeleton className="h-9" /><Skeleton className="h-9" />
+        </div>
+      </Card>
+    </div>
+  );
 
   return (
     <div>

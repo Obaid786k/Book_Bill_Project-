@@ -6,6 +6,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { TextInput } from '../../components/forms/TextInput';
 import { PasswordInput } from '../../components/forms/PasswordInput';
 import { Button } from '../../components/common/Button';
+import { Alert } from '../../components/feedback/Alert';
 import { authService } from '../../services/authService';
 import { passwordSchema } from '../../lib/validation';
 
@@ -56,13 +57,7 @@ const Signup = () => {
     <div>
       <h2 className="text-2xl font-bold text-navy text-center mb-2">Create an account</h2>
       <p className="text-[13px] text-ink2 text-center mb-8">
-        Already have an account?{' '}
-        <Link
-          to="/login"
-          className="inline-flex items-center px-2.5 py-0.5 rounded-full border border-navy/30 text-navy font-semibold hover:bg-navy/5 hover:border-navy transition-colors"
-        >
-          Sign in
-        </Link>
+        Start managing your invoices and billing in seconds.
       </p>
 
       <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-5">
@@ -115,14 +110,19 @@ const Signup = () => {
         {errors.terms && <span className="text-red text-[12px]">{errors.terms.message}</span>}
 
         {errors.root && (
-          <div className="text-red text-[12px] bg-red-bg/20 p-2 rounded text-center">
-            {errors.root.message}
-          </div>
+          <Alert variant="error" message={errors.root.message} />
         )}
 
         <Button type="submit" variant="primary" className="w-full mt-2 py-2.5" isLoading={isSubmitting}>
           Create account
         </Button>
+
+        <p className="text-[12px] text-ink2 text-center mt-4">
+          Already have an account?{' '}
+          <Link to="/login" className="font-semibold text-navy hover:underline">
+            Sign in
+          </Link>
+        </p>
       </form>
     </div>
   );

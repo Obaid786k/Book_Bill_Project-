@@ -9,8 +9,9 @@ import { StatusBadge } from '../../components/common/StatusBadge';
 import { ComingSoonBadge } from '../../components/common/ComingSoonBadge';
 import { ComingSoonPanel } from '../../components/common/ComingSoonPanel';
 import { DeleteConfirmDialog } from '../../components/common/DeleteConfirmDialog';
+import { Dialog } from '../../components/common/Dialog';
 import { useToast } from '../../components/feedback/Toast';
-import { Clock, X, FileText, CheckCircle, AlertCircle, Edit2, Trash2 } from 'lucide-react';
+import { Clock, FileText, CheckCircle, AlertCircle, Edit2, Trash2 } from 'lucide-react';
 
 export const BillHistory = () => {
   const { toast } = useToast();
@@ -59,12 +60,15 @@ export const BillHistory = () => {
 
   const handleDelete = async () => {
     if (!deleteId) return;
+    const previous = bills;
+    setBills(bills.filter(b => b.id !== deleteId)); // optimistic
+    setDeleteId(null);
     try {
       await billService.deleteBill(deleteId);
-      setBills(bills.filter(b => b.id !== deleteId));
       toast('✅ Bill deleted successfully.');
-    } catch (error) {
-      toast('❌ Failed to delete bill.');
+    } catch {
+      setBills(previous); // revert on failure
+      toast('❌ Failed to delete bill. Please try again.');
     }
   };
 
@@ -104,24 +108,22 @@ export const BillHistory = () => {
         />
       </div>
 
-      {selectedBill && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy/40 backdrop-blur-sm p-4">
-          <div className="bg-paper rounded-xl shadow-xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[85vh]">
-            <div className="p-4 border-b border-bb2 flex items-center justify-between bg-row-alt">
-              <h2 className="font-bold text-navy text-lg">Invoice {selectedBill.meta.invoiceNo}</h2>
-              <Button variant="ghost" size="icon" onClick={() => setSelectedBill(null)}>
-                <X size={20} />
-              </Button>
-            </div>
-            
-            <div className="flex border-b border-bb2 px-4">
-              <button 
+      <Dialog
+        isOpen={!!selectedBill}
+        onClose={() => setSelectedBill(null)}
+        title={selectedBill ? `Invoice ${selectedBill.meta.invoiceNo}` : ''}
+        className="max-w-2xl"
+      >
+        {selectedBill && (
+          <>
+            <div className="flex border-b border-bb2 -mx-5 px-5 mb-4">
+              <button
                 onClick={() => setActiveTab('details')}
                 className={`py-3 px-4 text-[13px] font-bold border-b-2 transition-colors ${activeTab === 'details' ? 'border-navy text-navy' : 'border-transparent text-ink2 hover:text-ink'}`}
               >
                 Invoice Details
               </button>
-              <button 
+              <button
                 onClick={() => setActiveTab('timeline')}
                 className={`py-3 px-4 text-[13px] font-bold border-b-2 transition-colors ${activeTab === 'timeline' ? 'border-navy text-navy' : 'border-transparent text-ink2 hover:text-ink'}`}
               >
@@ -129,30 +131,26 @@ export const BillHistory = () => {
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto bg-bg p-6">
+            <div className="bg-bg rounded-[6px] p-4 min-h-[160px]">
               {activeTab === 'details' && (
                 <div>
                   <h3 className="text-sm font-bold text-navy mb-2">Customer</h3>
                   <p className="text-[13px] text-ink mb-6">{selectedBill.customer.custName}</p>
-                  
                   <h3 className="text-sm font-bold text-navy mb-2">Summary</h3>
                   <p className="text-[13px] text-ink">Total Amount: {formatCurrency(recalc(selectedBill.items, selectedBill.settings?.gstOn, selectedBill.settings?.tt).totals.grand)}</p>
                 </div>
               )}
-              
               {activeTab === 'timeline' && (
-                <div className="h-64">
-                  <ComingSoonPanel 
-                    icon={Clock}
-                    title="Invoice Timeline"
-                    description="Soon you will be able to track every edit, payment, and status change applied to this invoice."
-                  />
-                </div>
+                <ComingSoonPanel
+                  icon={Clock}
+                  title="Invoice Timeline"
+                  description="Soon you will be able to track every edit, payment, and status change applied to this invoice."
+                />
               )}
             </div>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </Dialog>
 
       <DeleteConfirmDialog
         isOpen={!!deleteId}

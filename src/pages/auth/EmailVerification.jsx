@@ -2,10 +2,13 @@ import React, { useState, useCallback } from 'react';
 import { useLocation, Link, useNavigate } from 'react-router-dom';
 import { Mail, ArrowRight, Loader2 } from 'lucide-react';
 import { Button } from '../../components/common/Button';
+import { Alert } from '../../components/feedback/Alert';
 import { authService } from '../../services/authService';
 import { useToast } from '../../components/feedback/Toast';
 import { useAuthStore } from '../../store/authStore';
 import { useAuthPolling } from '../../hooks/useAuthPolling';
+import { useResendCooldown } from '../../hooks/useResendCooldown';
+import { clsx } from 'clsx';
 
 const EmailVerification = () => {
   const location = useLocation();
@@ -14,7 +17,7 @@ const EmailVerification = () => {
   const email = location.state?.email || 'your email';
   
   const { login } = useAuthStore();
-  const [isResending, setIsResending] = useState(false);
+  const { status, secondsLeft, trigger } = useResendCooldown(30, { autoStart: true });
 
   const onVerified = useCallback(async () => {
     // Fetch fresh user data directly — avoids calling initialize() again
@@ -29,14 +32,13 @@ const EmailVerification = () => {
   const { isTimedOut } = useAuthPolling(onVerified);
 
   const handleResend = async () => {
-    setIsResending(true);
     try {
-      await authService.resendVerification(email);
-      toast("Verification link resent successfully.");
+      await trigger(async () => {
+        await authService.resendVerification(email);
+        toast("Verification email sent ✓");
+      });
     } catch {
       toast("Failed to resend link. Please try again.");
-    } finally {
-      setIsResending(false);
     }
   };
 
@@ -55,37 +57,39 @@ const EmailVerification = () => {
           We're waiting for you to click the link in your email — this page will update automatically once you do.
         </p>
       ) : (
-        <p className="text-[13px] text-ink2 mb-8 leading-relaxed">
-          Still waiting? The link might have expired or hasn't arrived. You can resend the email below.
-        </p>
+        <div className="mb-6">
+          <Alert
+            variant="warning"
+            message="Still waiting? The link might have expired or hasn't arrived. You can resend the email below."
+          />
+        </div>
       )}
       
       <div className="flex flex-col gap-3">
-        {isTimedOut ? (
-          <>
-            <Button 
-              variant="primary" 
-              className="w-full" 
-              onClick={handleResend}
-              isLoading={isResending}
-            >
-              Resend verification link
+        <Button 
+          variant={isTimedOut ? "primary" : "outline"}
+          className={clsx(
+            "w-full transition-colors duration-150",
+            status === 'cooldown' && "text-ink3"
+          )}
+          onClick={handleResend}
+          isLoading={status === 'sending'}
+          disabled={status !== 'idle'}
+        >
+          {status === 'sending'
+            ? 'Sending...'
+            : status === 'cooldown'
+            ? `Resend email in ${secondsLeft}s`
+            : (isTimedOut ? 'Resend verification link' : 'Resend email')
+          }
+        </Button>
+
+        {isTimedOut && (
+          <Link to="/login">
+            <Button variant="outline" className="w-full">
+              Return to Login
             </Button>
-            <Link to="/login">
-              <Button variant="outline" className="w-full">
-                Return to Login
-              </Button>
-            </Link>
-          </>
-        ) : (
-          <Button 
-            variant="outline" 
-            className="w-full" 
-            onClick={handleResend}
-            isLoading={isResending}
-          >
-            Resend email
-          </Button>
+          </Link>
         )}
       </div>
     </div>

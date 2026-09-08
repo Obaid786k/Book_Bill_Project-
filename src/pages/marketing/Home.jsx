@@ -30,6 +30,23 @@ const Home = () => {
   
   const { isAuthenticated, isBusinessSetup, isInitializing } = useAuthStore();
   
+  // Guard against Supabase auth callbacks landing on the root marketing page (Site URL default)
+  const hash = window.location.hash || '';
+  const search = window.location.search || '';
+  const fullUrl = (hash + ' ' + search).toLowerCase();
+
+  if (
+    fullUrl.includes('type=signup') || 
+    fullUrl.includes('error_code=otp_expired') || 
+    (fullUrl.includes('error=access_denied') && !fullUrl.includes('type=recovery'))
+  ) {
+    return <Navigate to={`/email-confirmed${window.location.search}${window.location.hash}`} replace />;
+  }
+
+  if (fullUrl.includes('type=recovery') || fullUrl.includes('password_recovery')) {
+    return <Navigate to={`/reset-password${window.location.search}${window.location.hash}`} replace />;
+  }
+  
   if (isInitializing) {
     return <GlobalLoading />;
   }

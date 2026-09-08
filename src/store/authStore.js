@@ -68,12 +68,27 @@ export const useAuthStore = create((set) => ({
     _listenerRegistered = true;
 
     authService.onAuthStateChange((event, session) => {
-      if (event === 'PASSWORD_RECOVERY') {
+      const hash = window.location.hash || '';
+      const search = window.location.search || '';
+      const fullUrl = (hash + ' ' + search).toLowerCase();
+
+      if (event === 'PASSWORD_RECOVERY' || fullUrl.includes('type=recovery')) {
         // Do not redirect the original waiting tab; only redirect if they landed elsewhere
-        if (window.location.pathname !== '/forgot-password') {
-          window.location.href = '/reset-password';
+        if (window.location.pathname !== '/forgot-password' && window.location.pathname !== '/reset-password') {
+          window.location.href = '/reset-password' + window.location.hash + window.location.search;
         }
       }
+
+      if (
+        fullUrl.includes('type=signup') || 
+        fullUrl.includes('error_code=otp_expired') || 
+        (fullUrl.includes('error=access_denied') && !fullUrl.includes('type=recovery'))
+      ) {
+        if (window.location.pathname !== '/email-confirmed' && window.location.pathname !== '/verify-email') {
+          window.location.href = '/email-confirmed' + window.location.hash + window.location.search;
+        }
+      }
+
       if (!session) {
         set({ user: null, isAuthenticated: false, isBusinessSetup: false, isAdmin: false });
       }

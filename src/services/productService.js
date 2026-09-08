@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabaseClient';
 import { useAuthStore } from '../store/authStore';
-import { normalizeError } from '../lib/normalizeError';
+import { handleSupabaseError } from '../utils/handleSupabaseError';
 
 const getBusinessId = () => useAuthStore.getState().user?.businessId;
 
@@ -26,7 +26,7 @@ export const productService = {
       .select('*')
       .eq('business_id', businessId)
       .order('created_at', { ascending: false });
-    if (error) throw normalizeError(error);
+    if (error) throw handleSupabaseError(error, { table: 'products', action: 'select' });
     return data.map(toProductShape);
   },
 
@@ -49,12 +49,12 @@ export const productService = {
         .update(dbFields)
         .eq('id', product.id)
         .eq('business_id', businessId);
-      if (error) throw normalizeError(error);
+      if (error) throw handleSupabaseError(error, { table: 'products', action: 'update' });
     } else {
       const { error } = await supabase
         .from('products')
         .insert({ business_id: businessId, ...dbFields });
-      if (error) throw normalizeError(error);
+      if (error) throw handleSupabaseError(error, { table: 'products', action: 'insert' });
     }
 
     return productService.getProducts();
@@ -67,7 +67,7 @@ export const productService = {
       .delete()
       .eq('id', id)
       .eq('business_id', businessId);
-    if (error) throw normalizeError(error);
+    if (error) throw handleSupabaseError(error, { table: 'products', action: 'delete' });
     return productService.getProducts();
   },
 
@@ -80,7 +80,7 @@ export const productService = {
       .select('*')
       .eq('business_id', businessId)
       .order('created_at', { ascending: true });
-    if (error) throw normalizeError(error);
+    if (error) throw handleSupabaseError(error, { table: 'categories', action: 'select' });
     return data.map(toCategoryShape);
   },
 
@@ -94,12 +94,12 @@ export const productService = {
         .update({ name: category.name })
         .eq('id', category.id)
         .eq('business_id', businessId);
-      if (error) throw normalizeError(error);
+      if (error) throw handleSupabaseError(error, { table: 'categories', action: 'update' });
     } else {
       const { error } = await supabase
         .from('categories')
         .insert({ business_id: businessId, name: category.name });
-      if (error) throw normalizeError(error);
+      if (error) throw handleSupabaseError(error, { table: 'categories', action: 'insert' });
     }
 
     return productService.getCategories();
@@ -112,7 +112,7 @@ export const productService = {
       .delete()
       .eq('id', id)
       .eq('business_id', businessId);
-    if (error) throw normalizeError(error);
+    if (error) throw handleSupabaseError(error, { table: 'categories', action: 'delete' });
     return productService.getCategories();
   }
 };

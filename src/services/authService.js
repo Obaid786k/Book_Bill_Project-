@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabaseClient';
-import { normalizeError } from '../lib/normalizeError';
+import { handleSupabaseError } from '../utils/handleSupabaseError';
 
 // Fetches the profile + business row for the currently logged-in user,
 // shaped exactly like the old mock's user object so nothing else in the
@@ -32,7 +32,7 @@ const buildUserShape = async (authUser) => {
     profileError = retry.error;
   }
 
-  if (profileError) throw normalizeError(profileError);
+  if (profileError) throw handleSupabaseError(profileError, { table: 'profiles', action: 'select' });
 
   let hasCompletedSetup = false;
   if (profile.business_id) {
@@ -57,7 +57,7 @@ const buildUserShape = async (authUser) => {
 export const authService = {
   login: async (email, password) => {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) throw normalizeError(error);
+    if (error) throw handleSupabaseError(error, { table: 'auth', action: 'login' });
     return buildUserShape(data.user);
   },
 
@@ -70,7 +70,7 @@ export const authService = {
         emailRedirectTo: `${window.location.origin}/email-confirmed`
       },
     });
-    if (error) throw normalizeError(error);
+    if (error) throw handleSupabaseError(error, { table: 'auth', action: 'signup' });
     // No session yet until email is verified (depending on project settings) —
     // return a minimal shape; the page already routes to /verify-email next.
     return {
@@ -84,20 +84,42 @@ export const authService = {
 
   logout: async () => {
     const { error } = await supabase.auth.signOut();
-    if (error) throw normalizeError(error);
+    if (error) throw handleSupabaseError(error, { table: 'auth', action: 'logout' });
+  },
+
+  checkEmailStatus: async (email) => {
+    if (!email) return { exists: false, is_confirmed: false };
+    try {
+      const { data, error } = await supabase.rpc('check_user_verification_status', {
+        p_email: email.trim().toLowerCase(),
+      });
+      if (error) {
+        console.warn('[authService] check_user_verification_status RPC warning:', error.message);
+        return { exists: false, is_confirmed: false, rpcMissing: true };
+      }
+      return data || { exists: false, is_confirmed: false };
+    } catch {
+      return { exists: false, is_confirmed: false };
+    }
   },
 
   resetPassword: async (email) => {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/reset-password`,
     });
-    if (error) throw normalizeError(error);
+    if (error) throw handleSupabaseError(error, { table: 'auth', action: 'resetPassword' });
     return true;
   },
 
   resendVerification: async (email) => {
-    const { error } = await supabase.auth.resend({ type: 'signup', email });
-    if (error) throw normalizeError(error);
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email,
+      options: {
+        emailRedirectTo: `${window.location.origin}/email-confirmed`,
+      },
+    });
+    if (error) throw handleSupabaseError(error, { table: 'auth', action: 'resendVerification' });
     return true;
   },
 

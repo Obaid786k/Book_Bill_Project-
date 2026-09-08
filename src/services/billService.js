@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabaseClient';
 import { useAuthStore } from '../store/authStore';
-import { normalizeError } from '../lib/normalizeError';
+import { handleSupabaseError } from '../utils/handleSupabaseError';
 
 const getBusinessId = () => useAuthStore.getState().user?.businessId;
 
@@ -57,7 +57,7 @@ export const billService = {
         p_bill_id: bill.id,
         p_bill: bill,
       });
-      if (error) throw normalizeError(error);
+      if (error) throw handleSupabaseError(error, { table: 'bills', action: 'update_bill_details' });
       return toBillShape(data);
     }
 
@@ -65,7 +65,7 @@ export const billService = {
       p_business_id: businessId,
       p_bill: bill,
     });
-    if (error) throw normalizeError(error);
+    if (error) throw handleSupabaseError(error, { table: 'bills', action: 'finalize_bill' });
     return toBillShape(data);
   },
 
@@ -87,7 +87,7 @@ export const billService = {
       .select('*')
       .eq('business_id', businessId)
       .order('created_at', { ascending: false });
-    if (error) throw normalizeError(error);
+    if (error) throw handleSupabaseError(error, { table: 'bills', action: 'select' });
     return data.map(toBillShape);
   },
 
@@ -98,7 +98,7 @@ export const billService = {
       .eq('id', id)
       .select()
       .single();
-    if (error) throw normalizeError(error);
+    if (error) throw handleSupabaseError(error, { table: 'bills', action: 'updateStatus' });
     return toBillShape(data);
   },
 
@@ -110,14 +110,14 @@ export const billService = {
       p_bill_id: id,
       p_bill: bill,
     });
-    if (error) throw normalizeError(error);
+    if (error) throw handleSupabaseError(error, { table: 'bills', action: 'updateDetails' });
     return toBillShape(data);
   },
 
   // Not wired to any page yet — same as above, backend-ready only.
   deleteBill: async (id) => {
     const { error } = await supabase.from('bills').delete().eq('id', id);
-    if (error) throw normalizeError(error);
+    if (error) throw handleSupabaseError(error, { table: 'bills', action: 'delete' });
     return true;
   },
 
@@ -130,7 +130,7 @@ export const billService = {
     const { error } = await supabase
       .from('drafts')
       .insert({ business_id: businessId, payload: draft });
-    if (error) throw normalizeError(error);
+    if (error) throw handleSupabaseError(error, { table: 'drafts', action: 'insert' });
     return billService.getDrafts();
   },
 
@@ -142,13 +142,13 @@ export const billService = {
       .select('*')
       .eq('business_id', businessId)
       .order('saved_at', { ascending: false });
-    if (error) throw normalizeError(error);
+    if (error) throw handleSupabaseError(error, { table: 'drafts', action: 'select' });
     return data.map(toDraftShape);
   },
 
   deleteDraft: async (id) => {
     const { error } = await supabase.from('drafts').delete().eq('id', id);
-    if (error) throw normalizeError(error);
+    if (error) throw handleSupabaseError(error, { table: 'drafts', action: 'delete' });
     return billService.getDrafts();
   },
 
@@ -162,7 +162,7 @@ export const billService = {
       ? query.or(`business_id.is.null,business_id.eq.${businessId}`)
       : query.is('business_id', null);
     const { data, error } = await query.order('seeded', { ascending: false });
-    if (error) throw normalizeError(error);
+    if (error) throw handleSupabaseError(error, { table: 'templates', action: 'select' });
     return data.map(toTemplateShape);
   },
 
@@ -176,13 +176,13 @@ export const billService = {
       profile: template.profile || {},
       settings: template.settings || {},
     });
-    if (error) throw normalizeError(error);
+    if (error) throw handleSupabaseError(error, { table: 'templates', action: 'insert' });
     return billService.getTemplates();
   },
 
   deleteTemplate: async (id) => {
     const { error } = await supabase.from('templates').delete().eq('id', id);
-    if (error) throw normalizeError(error);
+    if (error) throw handleSupabaseError(error, { table: 'templates', action: 'delete' });
     return billService.getTemplates();
   }
 };

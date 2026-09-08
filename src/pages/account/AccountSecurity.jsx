@@ -8,6 +8,7 @@ import { useToast } from '../../components/feedback/Toast';
 import { Dialog } from '../../components/common/Dialog';
 import { validatePassword } from '../../lib/validation';
 import { PasswordInput } from '../../components/forms/PasswordInput';
+import { Skeleton } from '../../components/feedback/Skeleton';
 
 export const AccountSecurity = () => {
   const [data, setData] = useState(null);
@@ -34,7 +35,6 @@ export const AccountSecurity = () => {
 
     if (!passwords.newPassword) {
       setFieldErrors({ newPassword: 'Please enter a new password.' });
-      toast('Please enter a new password.');
       return;
     }
 
@@ -44,7 +44,6 @@ export const AccountSecurity = () => {
         newPassword: validation.error,
         confirmPassword: validation.error,
       });
-      toast(validation.error);
       return;
     }
 
@@ -53,7 +52,6 @@ export const AccountSecurity = () => {
         newPassword: "Passwords don't match",
         confirmPassword: "Passwords don't match",
       });
-      toast('New passwords do not match!');
       return;
     }
 
@@ -76,7 +74,21 @@ export const AccountSecurity = () => {
     accountService.getSecurityInfo().then(setData);
   }, []);
 
-  if (!data) return <div className="p-8">Loading security info...</div>;
+  if (!data) return (
+    <div>
+      <div className="mb-8 space-y-2">
+        <Skeleton className="h-7 w-44" />
+        <Skeleton className="h-4 w-64" />
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Card className="p-6"><Skeleton className="h-4 w-32 mb-4" /><Skeleton className="h-20" /></Card>
+        <div className="space-y-6">
+          <Card className="p-6"><Skeleton className="h-20" /></Card>
+          <Card className="p-6"><Skeleton className="h-20" /></Card>
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <div>

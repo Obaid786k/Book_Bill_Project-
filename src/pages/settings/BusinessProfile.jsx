@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { settingsService } from '../../services/settingsService';
 import { Card } from '../../components/common/Card';
+import { Skeleton } from '../../components/feedback/Skeleton';
 
 export const BusinessProfile = () => {
   const [profile, setProfile] = useState(null);
@@ -20,9 +21,14 @@ export const BusinessProfile = () => {
       setSaveStatus('Saving...');
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
       saveTimerRef.current = setTimeout(async () => {
-        await settingsService.saveBusinessProfile(data);
-        setSaveStatus('Saved');
-        setTimeout(() => setSaveStatus(''), 2000);
+        try {
+          await settingsService.saveBusinessProfile(data);
+          setSaveStatus('Saved');
+          setTimeout(() => setSaveStatus(''), 2000);
+        } catch {
+          setSaveStatus('Save failed — try again');
+          setTimeout(() => setSaveStatus(''), 3000);
+        }
       }, 1500);
     },
     []
@@ -37,7 +43,27 @@ export const BusinessProfile = () => {
     });
   };
 
-  if (!profile) return <div className="p-8">Loading profile...</div>;
+  if (!profile) return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between mb-8">
+        <div className="space-y-2">
+          <Skeleton className="h-7 w-44" />
+          <Skeleton className="h-4 w-64" />
+        </div>
+      </div>
+      <Card className="p-6 space-y-6">
+        <Skeleton className="h-4 w-32 mb-6" />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <Skeleton className="h-9" />
+          <Skeleton className="h-9" />
+          <Skeleton className="h-16 md:col-span-2" />
+          <Skeleton className="h-9" />
+          <Skeleton className="h-9" />
+          <Skeleton className="h-9" />
+        </div>
+      </Card>
+    </div>
+  );
 
   return (
     <div>

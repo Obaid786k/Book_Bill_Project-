@@ -135,22 +135,20 @@ export const NewBill = () => {
           if (bill.settings) setSettings(bill.settings);
           if (bill.meta) setMeta({ ...bill.meta, billName: bill.meta.billName || '' });
           if (bill.items) setItems(bill.items);
-          
           navigate(location.pathname, { replace: true, state: {} });
           toast('✅ Bill loaded for editing.');
         }
-      });
+      }).catch(() => toast('❌ Could not load bill. Please try again.'));
     }
 
     billService.getDrafts().then(ds => {
       setDrafts(ds);
-
-      // Arrived here from Drafts manager's "Continue" button
       if (location.state?.restoreDraftId && ds.some(d => d.id === location.state.restoreDraftId)) {
         setConfirmState({ isOpen: true, type: 'RESTORE_DRAFT', data: location.state.restoreDraftId });
         navigate(location.pathname, { replace: true, state: {} });
       }
-    });
+    }).catch(() => {}); // drafts failing silently is acceptable — strip bar just won't show
+
     billService.getTemplates().then(tpls => {
       if (location.state?.loadTemplateId) {
         const t = tpls.find(x => x.id === location.state.loadTemplateId);
@@ -160,13 +158,12 @@ export const NewBill = () => {
           if (p.payMode) setPayment(prev => ({ ...prev, payMode: p.payMode, bankAcc: p.bankAcc || '', ifsc: p.ifsc || '', upiId: p.upiId || '' }));
           if (t.settings) setSettings(prev => ({ ...prev, ...t.settings }));
           if (p.terms) setMeta(prev => ({ ...prev, terms: p.terms }));
-          
           navigate(location.pathname, { replace: true, state: {} });
           toast('✅ Template loaded successfully.');
         }
       }
-    });
-    
+    }).catch(() => toast('❌ Could not load template. Please try again.'));
+
     // Load shop profile
     shopService.getProfile().then(p => {
       setShop(prev => ({
@@ -191,13 +188,13 @@ export const NewBill = () => {
       if (p.defaultTaxType) {
         setSettings(s => ({ ...s, tt: s.tt || (p.defaultTaxType === 'exclusive' ? 'exclusive' : 'intra') }));
       }
-    });
+    }).catch(() => {}); // profile failing: form still works with initial/empty values
 
     settingsService.getInvoicePreferences().then(pref => {
       if (pref.invoiceSequence) {
         setMeta(prev => ({ ...prev, invoiceNo: prev.invoiceNo === 'INV-0001' ? pref.invoiceSequence : prev.invoiceNo }));
       }
-    });
+    }).catch(() => {}); // preferences failing: default invoice number used instead
 
     // Cleanup dirty state on absolute unmount
     return () => {

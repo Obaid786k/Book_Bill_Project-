@@ -12,7 +12,7 @@ export const Button = ({
   ...props
 }) => {
   // Mirroring .btn classes from reference_invoice exactly
-  const baseClasses = "font-body font-semibold border-none rounded-[5px] cursor-pointer inline-flex items-center gap-[5px] transition-all duration-150 active:scale-[0.97] whitespace-nowrap justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-navy focus-visible:ring-offset-2";
+  const baseClasses = "font-body font-semibold border-none rounded-[5px] cursor-pointer inline-flex items-center gap-[5px] transition-all duration-150 active:scale-[0.97] whitespace-nowrap justify-center outline-none focus:outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-navy focus-visible:ring-offset-2";
   
   const sizeClasses = {
     default: "text-[12.5px] py-[7px] px-[13px]",

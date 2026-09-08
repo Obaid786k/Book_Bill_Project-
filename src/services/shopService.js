@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabaseClient';
 import { useAuthStore } from '../store/authStore';
-import { normalizeError } from '../lib/normalizeError';
+import { handleSupabaseError } from '../utils/handleSupabaseError';
 
 const DEFAULT_SHOP = {
   shopName: "",
@@ -97,7 +97,7 @@ export const shopService = {
       .select()
       .single();
       
-    if (error) throw normalizeError(error);
+    if (error) throw handleSupabaseError(error, { table: 'businesses', action: 'saveProfile' });
     return toShopShape(updated);
   }
 };

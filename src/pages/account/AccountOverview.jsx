@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { accountService } from '../../services/accountService';
 import { StatCard } from '../../components/common/StatCard';
 import { Card } from '../../components/common/Card';
-import { Database, FileText, Package, LayoutTemplate, Clock, ShieldCheck, Monitor, Smartphone, X } from 'lucide-react';
+import { Database, FileText, Package, LayoutTemplate, Clock, ShieldCheck, Monitor, Smartphone } from 'lucide-react';
 import { ComingSoonBadge } from '../../components/common/ComingSoonBadge';
 import { ComingSoonPanel } from '../../components/common/ComingSoonPanel';
+import { Dialog } from '../../components/common/Dialog';
+import { Skeleton } from '../../components/feedback/Skeleton';
 
 export const AccountOverview = () => {
   const [data, setData] = useState(null);
@@ -14,7 +16,21 @@ export const AccountOverview = () => {
     accountService.getOverview().then(setData);
   }, []);
 
-  if (!data) return <div className="p-8">Loading overview...</div>;
+  if (!data) return (
+    <div>
+      <div className="mb-8 space-y-2">
+        <Skeleton className="h-7 w-44" />
+        <Skeleton className="h-4 w-64" />
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+        <Skeleton className="h-24" /><Skeleton className="h-24" /><Skeleton className="h-24" />
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Card className="p-6"><Skeleton className="h-4 w-32 mb-4" /><Skeleton className="h-16" /></Card>
+        <Card className="p-6"><Skeleton className="h-4 w-32 mb-4" /><Skeleton className="h-16" /></Card>
+      </div>
+    </div>
+  );
 
   return (
     <div>
@@ -139,20 +155,17 @@ export const AccountOverview = () => {
         </Card>
       </div>
 
-      {showPlaceholder && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy/40 backdrop-blur-sm p-4">
-          <div className="bg-paper rounded-xl shadow-xl w-full max-w-md overflow-hidden flex flex-col relative h-80">
-            <button onClick={() => setShowPlaceholder(false)} className="absolute top-4 right-4 text-ink3 hover:text-ink z-10">
-              <X size={20} />
-            </button>
-            <ComingSoonPanel 
-              title="Device Management"
-              description="Soon you'll have full visibility and control over where your account is logged in, allowing remote logout."
-              onDismiss={() => setShowPlaceholder(false)}
-            />
-          </div>
-        </div>
-      )}
+      <Dialog
+        isOpen={showPlaceholder}
+        onClose={() => setShowPlaceholder(false)}
+        title="Device Management"
+      >
+        <ComingSoonPanel
+          title="Device Management"
+          description="Soon you'll have full visibility and control over where your account is logged in, allowing remote logout."
+          onDismiss={() => setShowPlaceholder(false)}
+        />
+      </Dialog>
     </div>
   );
 };

@@ -1,13 +1,15 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Link, useNavigate, Navigate } from 'react-router-dom';
+import { Link, useNavigate, Navigate, useLocation } from 'react-router-dom';
 import { TextInput } from '../../components/forms/TextInput';
 import { PasswordInput } from '../../components/forms/PasswordInput';
 import { Button } from '../../components/common/Button';
+import { Alert } from '../../components/feedback/Alert';
 import { useAuthStore } from '../../store/authStore';
 import { authService } from '../../services/authService';
+import { Mail, CheckCircle2 } from 'lucide-react';
 
 const loginSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -16,13 +18,13 @@ const loginSchema = z.object({
 
 const Login = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { login, isAuthenticated, isBusinessSetup } = useAuthStore();
+  const [isUnconfirmed, setIsUnconfirmed] = useState(false);
+  const [resendStatus, setResendStatus] = useState(''); // '' | 'sending' | 'sent' | 'error'
+  const [submittedEmail, setSubmittedEmail] = useState('');
 
-  // Redirect already-logged-in users away from the login page
-  if (isAuthenticated) {
-    return <Navigate to={isBusinessSetup ? '/dashboard' : '/setup'} replace />;
-  }
-  
+  // Always call hooks before any early return (React Rules of Hooks)
   const {
     register,
     handleSubmit,
@@ -32,7 +34,15 @@ const Login = () => {
     resolver: zodResolver(loginSchema)
   });
 
+  // Redirect already-logged-in users away from the login page
+  if (isAuthenticated) {
+    return <Navigate to={isBusinessSetup ? '/dashboard' : '/setup'} replace />;
+  }
+
   const onSubmit = async (data) => {
+    setIsUnconfirmed(false);
+    setResendStatus('');
+    setSubmittedEmail(data.email);
     try {
       const user = await authService.login(data.email, data.password);
       login(user);
@@ -43,7 +53,22 @@ const Login = () => {
         navigate('/setup');
       }
     } catch (err) {
+      const isNotConfirmed = err.code === 'email_not_confirmed' || (err.message && err.message.toLowerCase().includes('verify your email'));
+      if (isNotConfirmed) {
+        setIsUnconfirmed(true);
+      }
       setError('root', { message: err.message || 'Login failed' });
+    }
+  };
+
+  const handleResend = async () => {
+    if (!submittedEmail) return;
+    setResendStatus('sending');
+    try {
+      await authService.resendVerification(submittedEmail);
+      setResendStatus('sent');
+    } catch {
+      setResendStatus('error');
     }
   };
 
@@ -51,14 +76,17 @@ const Login = () => {
     <div>
       <h2 className="text-2xl font-bold text-navy text-center mb-2">Sign in to your account</h2>
       <p className="text-[13px] text-ink2 text-center mb-8">
-        Don't have an account?{' '}
-        <Link
-          to="/signup"
-          className="inline-flex items-center px-2.5 py-0.5 rounded-full border border-navy/30 text-navy font-semibold hover:bg-navy/5 hover:border-navy transition-colors"
-        >
-          Sign up free
-        </Link>
+        Enter your credentials to access your billing workspace.
       </p>
+
+      {location.state?.verifiedNotice && (
+        <div className="mb-6">
+          <Alert
+            variant="success"
+            message="Your email has been successfully verified! You can now sign in to your account."
+          />
+        </div>
+      )}
 
       <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-5">
         <TextInput
@@ -86,14 +114,55 @@ const Login = () => {
         </div>
 
         {errors.root && (
-          <div className="text-red text-[12px] bg-red-bg/20 p-2 rounded text-center">
-            {errors.root.message}
-          </div>
+          isUnconfirmed ? (
+            <Alert
+              variant="warning"
+              icon={Mail}
+              title="Email verification required"
+              message="Please check your inbox for the confirmation link to activate your account."
+              action={
+                <div className="w-full flex items-center justify-between">
+                  {resendStatus === 'sent' ? (
+                    <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-green">
+                      <CheckCircle2 size={13} /> Fresh link sent! Check your inbox.
+                    </span>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleResend}
+                      isLoading={resendStatus === 'sending'}
+                      disabled={resendStatus === 'sending'}
+                      className="text-[11.5px] font-semibold bg-white"
+                    >
+                      <Mail size={12} />
+                      Resend verification email
+                    </Button>
+                  )}
+                  {resendStatus === 'error' && (
+                    <span className="text-[11.5px] text-ink2 font-medium">
+                      Failed to resend. Try again.
+                    </span>
+                  )}
+                </div>
+              }
+            />
+          ) : (
+            <Alert variant="error" message={errors.root.message} />
+          )
         )}
 
         <Button type="submit" variant="primary" className="w-full mt-2 py-2.5" isLoading={isSubmitting}>
           Sign in
         </Button>
+
+        <p className="text-[12px] text-ink2 text-center mt-4">
+          Don't have an account?{' '}
+          <Link to="/signup" className="font-semibold text-navy hover:underline">
+            Create an account
+          </Link>
+        </p>
       </form>
     </div>
   );

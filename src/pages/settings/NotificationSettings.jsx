@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { settingsService } from '../../services/settingsService';
 import { Card } from '../../components/common/Card';
 import { clsx } from 'clsx';
+import { Skeleton } from '../../components/feedback/Skeleton';
 
 export const NotificationSettings = () => {
   const [profile, setProfile] = useState(null);
@@ -17,9 +18,14 @@ export const NotificationSettings = () => {
       setSaveStatus('Saving...');
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
       saveTimerRef.current = setTimeout(async () => {
-        await settingsService.saveNotificationSettings(data);
-        setSaveStatus('Saved');
-        setTimeout(() => setSaveStatus(''), 2000);
+        try {
+          await settingsService.saveNotificationSettings(data);
+          setSaveStatus('Saved');
+          setTimeout(() => setSaveStatus(''), 2000);
+        } catch {
+          setSaveStatus('Save failed — try again');
+          setTimeout(() => setSaveStatus(''), 3000);
+        }
       }, 1500);
     },
     []
@@ -34,7 +40,25 @@ export const NotificationSettings = () => {
     });
   };
 
-  if (!profile) return <div className="p-8">Loading...</div>;
+  if (!profile) return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between mb-8">
+        <div className="space-y-2">
+          <Skeleton className="h-7 w-36" />
+          <Skeleton className="h-4 w-56" />
+        </div>
+      </div>
+      {[1,2,3,4].map(i => (
+        <Card key={i} className="p-4 flex items-center justify-between">
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-28" />
+            <Skeleton className="h-3 w-52" />
+          </div>
+          <Skeleton className="h-6 w-11 rounded-full" />
+        </Card>
+      ))}
+    </div>
+  );
 
   return (
     <div>

@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabaseClient';
 import { useAuthStore } from '../store/authStore';
-import { normalizeError } from '../lib/normalizeError';
+import { handleSupabaseError } from '../utils/handleSupabaseError';
 
 const getBusinessId = () => useAuthStore.getState().user?.businessId;
 
@@ -12,7 +12,7 @@ const fetchRow = async () => {
     .select('*')
     .eq('id', businessId)
     .single();
-  if (error) throw normalizeError(error);
+  if (error) throw handleSupabaseError(error, { table: 'businesses', action: 'select' });
   return data;
 };
 
@@ -23,7 +23,7 @@ const updateRow = async (dbFields) => {
     .from('businesses')
     .update(dbFields)
     .eq('id', businessId);
-  if (error) throw normalizeError(error);
+  if (error) throw handleSupabaseError(error, { table: 'businesses', action: 'update' });
   return true;
 };
 
@@ -75,7 +75,7 @@ export const settingsService = {
     const businessId = getBusinessId();
     if (!businessId) return null;
     const { data, error } = await supabase.rpc('generate_next_invoice_no', { p_business_id: businessId });
-    if (error) throw normalizeError(error);
+    if (error) throw handleSupabaseError(error, { table: 'businesses', action: 'generate_next_invoice_no' });
     return data;
   },
 
@@ -124,7 +124,7 @@ export const settingsService = {
   // Security Settings
   changePassword: async (_oldPassword, newPassword) => {
     const { error } = await supabase.auth.updateUser({ password: newPassword });
-    if (error) throw normalizeError(error);
+    if (error) throw handleSupabaseError(error, { table: 'auth', action: 'updateUserPassword' });
     return true;
   }
 };

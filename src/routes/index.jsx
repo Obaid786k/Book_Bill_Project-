@@ -95,11 +95,11 @@ const AppRoutes = () => {
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/verify-email" element={<EmailVerification />} />
+        <Route path="/email-confirmed" element={<EmailConfirmed />} />
       </Route>
 
-      {/* Onboarding & Email Confirm (Authenticated but not setup) */}
+      {/* Onboarding (Authenticated but not setup) */}
       <Route element={<ProtectedRoute authOnly={true} />}>
-        <Route path="/email-confirmed" element={<AuthLayout><EmailConfirmed /></AuthLayout>} />
         <Route path="/setup" element={<BusinessSetup />} />
         <Route path="/welcome" element={<WelcomeScreen />} />
       </Route>
