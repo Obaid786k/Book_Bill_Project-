@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabaseClient';
 import { useAuthStore } from '../store/authStore';
+import { cached, mutating } from '../lib/dataCache';
 import { handleSupabaseError } from '../utils/handleSupabaseError';
 
 const getBusinessId = () => useAuthStore.getState().user?.businessId;
@@ -116,3 +117,11 @@ export const productService = {
     return productService.getCategories();
   }
 };
+
+// Speed: remember reads for a few minutes; any save/delete clears the memory (src/lib/dataCache.js).
+productService.getProducts = cached('products.list', productService.getProducts);
+productService.getCategories = cached('categories.list', productService.getCategories);
+productService.saveProduct = mutating(productService.saveProduct);
+productService.deleteProduct = mutating(productService.deleteProduct);
+productService.saveCategory = mutating(productService.saveCategory);
+productService.deleteCategory = mutating(productService.deleteCategory);

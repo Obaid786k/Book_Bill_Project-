@@ -1,10 +1,13 @@
 import React, { useEffect, useState } from 'react';
+import { PageHeader } from '../../components/common/PageHeader';
 import { productService } from '../../services/productService';
 import { DataTable } from '../../components/common/DataTable';
 import { Button } from '../../components/common/Button';
 import { DeleteConfirmDialog } from '../../components/common/DeleteConfirmDialog';
+import { useToast } from '../../components/feedback/Toast';
 
 export const CategoryManager = () => {
+  const { toast } = useToast();
   const [categories, setCategories] = useState([]);
   const [newCat, setNewCat] = useState('');
   const [deleteId, setDeleteId] = useState(null);
@@ -12,7 +15,8 @@ export const CategoryManager = () => {
   const [isDeleting, setIsDeleting] = useState(false);
 
   const loadCategories = () => {
-    productService.getCategories().then(setCategories);
+    productService.getCategories().then(setCategories)
+      .catch(() => toast.error('Could not load categories. Please refresh the page.'));
   };
 
   useEffect(() => {
@@ -27,6 +31,8 @@ export const CategoryManager = () => {
       await productService.saveCategory({ name: newCat.trim() });
       setNewCat('');
       loadCategories();
+    } catch (err) {
+      toast.error(`${err.message || 'Failed to add category. Please try again.'}`);
     } finally {
       setIsAdding(false);
     }
@@ -43,6 +49,8 @@ export const CategoryManager = () => {
       await productService.deleteCategory(deleteId);
       setDeleteId(null);
       loadCategories();
+    } catch {
+      toast.error('Failed to delete category. Please try again.');
     } finally {
       setIsDeleting(false);
     }
@@ -56,7 +64,7 @@ export const CategoryManager = () => {
   const actions = (row) => (
     <div className="flex justify-end">
       <button 
-        className="text-rose hover:text-rose/80 text-sm font-semibold transition-colors"
+        className="text-red hover:text-red/80 text-sm font-semibold transition-colors"
         onClick={() => handleDelete(row.id)}
       >
         Delete
@@ -65,11 +73,8 @@ export const CategoryManager = () => {
   );
 
   return (
-    <div className="p-6 h-full flex flex-col max-w-4xl mx-auto w-full">
-      <div className="mb-8">
-        <h1 className="text-2xl font-display font-bold text-ink">Categories</h1>
-        <p className="text-sm text-ink2 mt-1">Organize your products and services.</p>
-      </div>
+    <div className="h-full flex flex-col max-w-5xl mx-auto w-full">
+      <PageHeader />
 
       <div className="bg-paper border border-border rounded-lg shadow-sm p-6 mb-8">
         <h2 className="text-[13px] font-bold text-navy uppercase tracking-wider mb-4">Add New Category</h2>

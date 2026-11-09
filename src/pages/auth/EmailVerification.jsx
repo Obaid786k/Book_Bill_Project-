@@ -14,8 +14,17 @@ const EmailVerification = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const email = location.state?.email || 'your email';
-  
+  // Kept in sessionStorage so a page refresh doesn't lose it.
+  const email = (() => {
+    const fromState = location.state?.email;
+    try {
+      if (fromState) sessionStorage.setItem('bb_verify_email', fromState);
+      return fromState || sessionStorage.getItem('bb_verify_email') || '';
+    } catch {
+      return fromState || '';
+    }
+  })();
+
   const { login } = useAuthStore();
   const { status, secondsLeft, trigger } = useResendCooldown(30, { autoStart: true });
 
@@ -35,10 +44,10 @@ const EmailVerification = () => {
     try {
       await trigger(async () => {
         await authService.resendVerification(email);
-        toast("Verification email sent ✓");
+        toast.success("Verification email sent");
       });
     } catch {
-      toast("Failed to resend link. Please try again.");
+      toast.error("Failed to resend link. Please try again.");
     }
   };
 
@@ -53,7 +62,7 @@ const EmailVerification = () => {
       
       {!isTimedOut ? (
         <p className="text-[13px] text-ink2 mb-8 leading-relaxed">
-          We've sent a verification link to <span className="font-semibold text-ink">{email}</span>. <br/><br/>
+          We've sent a verification link to <span className="font-semibold text-ink">{email || 'your email'}</span>. <br/><br/>
           We're waiting for you to click the link in your email — this page will update automatically once you do.
         </p>
       ) : (
@@ -66,7 +75,8 @@ const EmailVerification = () => {
       )}
       
       <div className="flex flex-col gap-3">
-        <Button 
+        {email && (
+        <Button
           variant={isTimedOut ? "primary" : "outline"}
           className={clsx(
             "w-full transition-colors duration-150",
@@ -83,11 +93,12 @@ const EmailVerification = () => {
             : (isTimedOut ? 'Resend verification link' : 'Resend email')
           }
         </Button>
+        )}
 
-        {isTimedOut && (
+        {(isTimedOut || !email) && (
           <Link to="/login">
             <Button variant="outline" className="w-full">
-              Return to Login
+              {email ? 'Return to Login' : 'Go to Login'}
             </Button>
           </Link>
         )}

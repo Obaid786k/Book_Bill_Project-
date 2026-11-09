@@ -1,29 +1,25 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { PageHeader } from '../../components/common/PageHeader';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '../../components/common/Button';
 import { DeleteConfirmDialog } from '../../components/common/DeleteConfirmDialog';
 import { useToast } from '../../components/feedback/Toast';
 import { billService } from '../../services/billService';
-import { PlusCircle, LayoutTemplate } from 'lucide-react';
+import { LayoutTemplate } from 'lucide-react';
 
+// New templates are saved from New Bill → "Save as Template" (popup there).
 export const Templates = () => {
   const navigate = useNavigate();
-  const location = useLocation();
   const { toast } = useToast();
-  
+
   const [templates, setTemplates] = useState([]);
   const [deleteTemplateId, setDeleteTemplateId] = useState(null);
   const [isDeletingTemplate, setIsDeletingTemplate] = useState(false);
-  const [isSavingTemplate, setIsSavingTemplate] = useState(false);
-  
-  // State for saving new template
-  const [tplName, setTplName] = useState('');
-  const [nameError, setNameError] = useState('');
-  const currentBillState = location.state?.currentBillState || null;
 
   useEffect(() => {
-    billService.getTemplates().then(setTemplates);
-  }, []);
+    billService.getTemplates().then(setTemplates)
+      .catch(() => toast.error('Could not load templates. Please refresh the page.'));
+  }, [toast]);
 
   const handleLoad = (id) => {
     navigate('/billing/new', { state: { loadTemplateId: id } });
@@ -36,35 +32,11 @@ export const Templates = () => {
       const tpls = await billService.deleteTemplate(deleteTemplateId);
       setTemplates(tpls);
       setDeleteTemplateId(null);
-      toast('✅ Template deleted.');
+      toast.success('Template deleted.');
+    } catch {
+      toast.error('Failed to delete template. Please try again.');
     } finally {
       setIsDeletingTemplate(false);
-    }
-  };
-
-  const handleSaveCurrentBill = async () => {
-    if (!currentBillState || isSavingTemplate) return;
-    if (!tplName.trim()) {
-      setNameError('Please enter a template name.');
-      return;
-    }
-    setNameError('');
-    
-    const { shop, meta, payment, settings } = currentBillState;
-    const tpl = {
-      name: tplName.trim(),
-      profile: { ...shop, terms: meta.terms, payMode: payment.payMode, bankAcc: payment.bankAcc, ifsc: payment.ifsc, upiId: payment.upiId },
-      settings: { gstOn: settings.gstOn, tt: settings.tt, payMode: payment.payMode }
-    };
-    
-    setIsSavingTemplate(true);
-    try {
-      const tpls = await billService.saveTemplate(tpl);
-      setTemplates(tpls);
-      setTplName('');
-      toast('✅ Template saved successfully.');
-    } finally {
-      setIsSavingTemplate(false);
     }
   };
 
@@ -100,44 +72,9 @@ export const Templates = () => {
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
-      <div className="flex justify-between items-center mb-8">
-        <div>
-          <h1 className="text-2xl font-display font-bold text-ink">Template Manager</h1>
-          <p className="text-sm text-ink2 mt-1">Manage, create, and load billing templates.</p>
-        </div>
-        <Button variant="outline" onClick={() => navigate('/billing/new')}>
+      <PageHeader actions={<Button variant="outline" onClick={() => navigate('/billing/new')}>
           Back to New Bill
-        </Button>
-      </div>
-
-      {currentBillState && (
-        <div className="bg-navy-lt/10 border border-navy/20 rounded-xl p-6 mb-8 flex flex-col md:flex-row gap-6 items-center">
-          <div className="flex-1">
-            <h2 className="text-[15px] font-bold text-navy flex items-center gap-2 mb-1">
-              <PlusCircle size={18} /> Save Current Bill as Template
-            </h2>
-            <p className="text-[13px] text-ink2">
-              Save the business profile, settings, and terms from your current session for future reuse.
-            </p>
-          </div>
-          <div className="flex-shrink-0 w-full md:w-auto flex gap-2">
-            <div className="flex flex-col gap-1 w-full md:w-64">
-              <input 
-                type="text" 
-                className={`w-full border rounded-md px-3 py-2 text-[13.5px] font-body outline-none focus:border-navy transition-colors ${nameError ? 'border-red' : 'border-bb'}`}
-                placeholder="e.g. My Pharmacy" 
-                maxLength="40"
-                value={tplName}
-                onChange={(e) => { setTplName(e.target.value); if (nameError) setNameError(''); }}
-              />
-              {nameError && <p className="text-[11px] text-red font-medium">{nameError}</p>}
-            </div>
-            <Button variant="primary" onClick={handleSaveCurrentBill} isLoading={isSavingTemplate}>
-              Save
-            </Button>
-          </div>
-        </div>
-      )}
+        </Button>} />
 
       {!templates.length && (
         <div className="text-center p-12 bg-paper border border-bb rounded-xl text-ink2">

@@ -15,6 +15,14 @@
   --red-bg: #FEF2F2;
   --green: #276749;
   --row-alt: #F7F9FC;
+  --inv-muted: #64748B;  /* invoice: small/secondary text — readable when printed (ink3 is too faint on paper) */
+  /* App shell / dashboard redesign */
+  --navy-900: #0F2547;   /* numbers, profile name, Super admin */
+  --navy-300: #8FA6C8;   /* previous-period dashed line */
+  --navy-100: #DCE5F2;
+  --chart-grid: #E6ECF5;
+  --nav-icon: #47618C;   /* inactive nav icon */
+  --divider: #A9BCD8;    /* account row divider */
   --f-body: 'Inter', sans-serif;
   --f-mono: 'Roboto Mono', monospace;
 }

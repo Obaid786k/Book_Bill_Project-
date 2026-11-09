@@ -6,12 +6,13 @@ import { clsx } from 'clsx';
 
 export const SystemLogs = () => {
   const [logs, setLogs] = useState(null);
+  const [loadError, setLoadError] = useState('');
   const [search, setSearch] = useState('');
   const [severityFilter, setSeverityFilter] = useState('ALL');
   const [dateFilter, setDateFilter] = useState('');
 
   useEffect(() => {
-    adminService.getSystemLogs().then(setLogs);
+    adminService.getSystemLogs().then(setLogs).catch((e) => setLoadError(e.message || 'Could not load logs.'));
   }, []);
 
   const filteredLogs = useMemo(() => {
@@ -27,9 +28,10 @@ export const SystemLogs = () => {
     // Filter by Search (Event detail or service)
     if (search) {
       const lowerSearch = search.toLowerCase();
-      filtered = filtered.filter(l => 
-        l.message.toLowerCase().includes(lowerSearch) || 
-        l.service.toLowerCase().includes(lowerSearch)
+      filtered = filtered.filter(l =>
+        l.message.toLowerCase().includes(lowerSearch) ||
+        l.service.toLowerCase().includes(lowerSearch) ||
+        l.business.toLowerCase().includes(lowerSearch)
       );
     }
 
@@ -103,21 +105,22 @@ export const SystemLogs = () => {
       header: 'Event Detail',
       accessor: (log) => {
         return (
-          <span className="truncate max-w-[300px] block text-ink2">
+          <span className="truncate max-w-[360px] block text-ink2" title={log.message}>
             {log.message}
           </span>
         );
       }
     },
     {
-      header: 'Origin IP',
-      accessor: (log) => <span className="font-mono text-[13px] text-ink3">{log.ip}</span>
+      header: 'Business',
+      accessor: (log) => <span className="text-[13px] text-ink3">{log.business}</span>
     }
   ];
 
   // Row class getter for DataTable
   const getRowClass = (log) => levelConfig[log.level]?.row || '';
 
+  if (loadError) return <p className="p-4 rounded-lg bg-red-bg text-red text-[13px] font-medium">{loadError}</p>;
   if (!logs) return <div className="p-8">Loading logs...</div>;
 
   return (
@@ -125,7 +128,7 @@ export const SystemLogs = () => {
       <div className="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-display font-bold text-ink">System Logs</h1>
-          <p className="text-sm text-ink2 mt-1">Real-time operational events from microservices.</p>
+          <p className="text-sm text-ink2 mt-1">Latest 200 recorded events from all businesses: bills, settings changes and app errors.</p>
         </div>
       </div>
 
@@ -181,7 +184,7 @@ export const SystemLogs = () => {
       </div>
 
       <div className="flex items-center gap-2 text-navy font-bold text-sm mb-4">
-        <Terminal size={16} /> Live Tail ({filteredLogs.length} events)
+        <Terminal size={16} /> Events ({filteredLogs.length})
       </div>
       
       <DataTable 

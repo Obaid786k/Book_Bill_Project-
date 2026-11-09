@@ -1,10 +1,12 @@
 import { supabase } from '../lib/supabaseClient';
 import { useAuthStore } from '../store/authStore';
+import { cached, mutating } from '../lib/dataCache';
 import { handleSupabaseError } from '../utils/handleSupabaseError';
 
 const getBusinessId = () => useAuthStore.getState().user?.businessId;
 
-const fetchRow = async () => {
+// One cached read of the business row serves every settings page.
+const fetchRow = cached('business.row', async () => {
   const businessId = getBusinessId();
   if (!businessId) return null;
   const { data, error } = await supabase
@@ -14,9 +16,9 @@ const fetchRow = async () => {
     .single();
   if (error) throw handleSupabaseError(error, { table: 'businesses', action: 'select' });
   return data;
-};
+});
 
-const updateRow = async (dbFields) => {
+const updateRow = mutating(async (dbFields) => {
   const businessId = getBusinessId();
   if (!businessId) throw new Error('No business found for current user');
   const { error } = await supabase
@@ -25,7 +27,7 @@ const updateRow = async (dbFields) => {
     .eq('id', businessId);
   if (error) throw handleSupabaseError(error, { table: 'businesses', action: 'update' });
   return true;
-};
+});
 
 export const settingsService = {
   // Business Profile
@@ -67,17 +69,8 @@ export const settingsService = {
     default_terms: data.defaultTerms,
     invoice_sequence: data.invoiceSequence,
   }),
-  // NOTE: once billService.saveBill moves to the finalize_bill() RPC
-  // (Phase 3 — billing core), that RPC generates the next invoice number
-  // internally and this separate call won't be needed from NewBill.jsx
-  // anymore. Kept working standalone here in the meantime.
-  incrementInvoiceSequence: async () => {
-    const businessId = getBusinessId();
-    if (!businessId) return null;
-    const { data, error } = await supabase.rpc('generate_next_invoice_no', { p_business_id: businessId });
-    if (error) throw handleSupabaseError(error, { table: 'businesses', action: 'generate_next_invoice_no' });
-    return data;
-  },
+  // Invoice numbers are issued only inside finalize_bill() (see billService);
+  // generate_next_invoice_no() is internal and not callable from the client.
 
   // GST Settings
   getGSTSettings: async () => {
@@ -122,7 +115,31 @@ export const settingsService = {
   }),
 
   // Security Settings
-  changePassword: async (_oldPassword, newPassword) => {
+  // Logged-in password change: re-verifies the CURRENT password before
+  // setting the new one, so an unattended open session can't be used to
+  // take over the account. Other devices are signed out afterwards.
+  changePassword: async (oldPassword, newPassword) => {
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user?.email) throw handleSupabaseError(userError || { code: 'session_not_found' }, { table: 'auth', action: 'getUser' });
+
+    const { error: verifyError } = await supabase.auth.signInWithPassword({ email: user.email, password: oldPassword });
+    if (verifyError) {
+      const err = new Error('Current password is incorrect.');
+      err.field = 'oldPassword';
+      throw err;
+    }
+
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) throw handleSupabaseError(error, { table: 'auth', action: 'updateUserPassword' });
+
+    // Best-effort: end sessions on other devices; never fail the change over it.
+    await supabase.auth.signOut({ scope: 'others' }).catch(() => {});
+    return true;
+  },
+
+  // Password-recovery flow only (ResetPassword page). The user proved
+  // ownership via the emailed one-time link, so there is no current password.
+  setRecoveredPassword: async (newPassword) => {
     const { error } = await supabase.auth.updateUser({ password: newPassword });
     if (error) throw handleSupabaseError(error, { table: 'auth', action: 'updateUserPassword' });
     return true;

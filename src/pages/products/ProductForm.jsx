@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Drawer } from '../../components/common/Drawer';
 import { Button } from '../../components/common/Button';
 import { productService } from '../../services/productService';
+import { useToast } from '../../components/feedback/Toast';
+import { GST_RATES, UNITS, withCurrent } from '../../utils/constants';
 
 const INITIAL_FORM = {
   name: '',
@@ -15,11 +17,13 @@ const INITIAL_FORM = {
 export const ProductForm = ({ isOpen, onClose, product, onSave }) => {
   const [formData, setFormData] = useState(INITIAL_FORM);
   const [categories, setCategories] = useState([]);
+  const [isSaving, setIsSaving] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     if (isOpen) {
       setFormData(product || INITIAL_FORM);
-      productService.getCategories().then(setCategories);
+      productService.getCategories().then(setCategories).catch(() => setCategories([]));
     }
   }, [isOpen, product]);
 
@@ -30,17 +34,25 @@ export const ProductForm = ({ isOpen, onClose, product, onSave }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.name || !formData.rate) return;
-    
+    // A price of 0 is valid (free items); only an empty field is rejected.
+    if (isSaving || !formData.name || formData.rate === '' || formData.rate === null) return;
+
     // Parse numbers
     const finalData = {
       ...formData,
       rate: parseFloat(formData.rate) || 0
     };
-    
-    await productService.saveProduct(finalData);
-    onSave();
-    onClose();
+
+    setIsSaving(true);
+    try {
+      await productService.saveProduct(finalData);
+      onSave();
+      onClose();
+    } catch (err) {
+      toast.error(`${err.message || 'Failed to save product. Please try again.'}`);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -52,7 +64,7 @@ export const ProductForm = ({ isOpen, onClose, product, onSave }) => {
       <form onSubmit={handleSubmit} className="flex flex-col h-full">
         <div className="flex-1 overflow-y-auto p-6 space-y-5 bg-paper">
           <div>
-            <label className="block text-[13px] font-bold text-navy mb-1.5">Product Name <span className="text-rose">*</span></label>
+            <label className="block text-[13px] font-bold text-navy mb-1.5">Product Name <span className="text-red">*</span></label>
             <input 
               type="text" 
               name="name"
@@ -66,7 +78,7 @@ export const ProductForm = ({ isOpen, onClose, product, onSave }) => {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-[13px] font-bold text-navy mb-1.5">Selling Price (₹) <span className="text-rose">*</span></label>
+              <label className="block text-[13px] font-bold text-navy mb-1.5">Selling Price (₹) <span className="text-red">*</span></label>
               <input 
                 type="number" 
                 name="rate"
@@ -87,7 +99,7 @@ export const ProductForm = ({ isOpen, onClose, product, onSave }) => {
                 onChange={handleChange}
                 className="w-full border border-bb rounded p-2.5 text-sm outline-none focus:border-navy transition-colors bg-white"
               >
-                {['Pcs', 'Kg', 'Gram', 'Ltr', 'Box', 'Dozen', 'Meter', 'Pack', 'Nos', 'Set', 'Pair', 'Session', 'Project', 'Hour', 'Month', 'Service', 'Strip', 'Bag', 'Bottle'].map(u => (
+                {withCurrent(UNITS, formData.unit).map(u => (
                   <option key={u}>{u}</option>
                 ))}
               </select>
@@ -117,11 +129,9 @@ export const ProductForm = ({ isOpen, onClose, product, onSave }) => {
                 onChange={handleChange}
                 className="w-full border border-bb rounded p-2.5 text-sm outline-none focus:border-navy transition-colors bg-white"
               >
-                <option value="0">0% (Exempt)</option>
-                <option value="5">5%</option>
-                <option value="12">12%</option>
-                <option value="18">18%</option>
-                <option value="28">28%</option>
+                {withCurrent(GST_RATES, formData.gp).map(r => (
+                  <option key={r} value={r}>{r === '0' ? '0% (Exempt)' : `${r}%`}</option>
+                ))}
               </select>
             </div>
           </div>
@@ -142,7 +152,7 @@ export const ProductForm = ({ isOpen, onClose, product, onSave }) => {
 
         <div className="p-4 border-t border-bb bg-row-alt flex justify-end gap-3 flex-shrink-0">
           <Button variant="outline" onClick={onClose} type="button">Cancel</Button>
-          <Button variant="primary" type="submit">Save Product</Button>
+          <Button variant="primary" type="submit" isLoading={isSaving}>Save Product</Button>
         </div>
       </form>
     </Drawer>

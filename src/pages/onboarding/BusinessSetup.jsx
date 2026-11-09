@@ -9,8 +9,15 @@ import { TextInput } from '../../components/forms/TextInput';
 import { Textarea } from '../../components/forms/Textarea';
 import { Select } from '../../components/forms/Select';
 import { Button } from '../../components/common/Button';
+import { Alert } from '../../components/feedback/Alert';
 import { shopService } from '../../services/shopService';
 import { useAuthStore } from '../../store/authStore';
+import { STATES } from '../../utils/constants';
+
+const STATE_OPTIONS = [
+  { value: '', label: 'Select State' },
+  ...STATES.map(s => ({ value: s.n, label: s.n })),
+];
 
 // Schemas for each step
 const step1Schema = z.object({
@@ -22,7 +29,7 @@ const step1Schema = z.object({
 const step2Schema = z.object({
   addressLine1: z.string().min(5, 'Address is required'),
   city: z.string().min(2, 'City is required'),
-  state: z.string().min(2, 'State is required'),
+  state: z.string().min(1, 'State is required'),
   pincode: z.string().min(6, 'Valid pincode required'),
 });
 
@@ -52,6 +59,7 @@ const BusinessSetup = () => {
   const [currentStep, setCurrentStep] = useState(0);
   const [formData, setFormData] = useState({});
   const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
 
   // Select schema based on current step
   const schemas = [step1Schema, step2Schema, step3Schema, step4Schema];
@@ -75,6 +83,7 @@ const BusinessSetup = () => {
     } else {
       // Final Submit
       setIsSaving(true);
+      setSaveError('');
       try {
         await shopService.saveProfile({
           shopName: updatedData.businessName || '',
@@ -91,7 +100,7 @@ const BusinessSetup = () => {
         completeSetup();
         navigate('/welcome');
       } catch (err) {
-        console.error("Setup failed", err);
+        setSaveError(err.message || 'Could not save your business details. Please try again.');
       } finally {
         setIsSaving(false);
       }
@@ -100,6 +109,7 @@ const BusinessSetup = () => {
 
   const handleSkip = async () => {
     setIsSaving(true);
+    setSaveError('');
     try {
       // Save whatever is currently in the form state before skipping
       const currentVals = { ...formData };
@@ -113,6 +123,8 @@ const BusinessSetup = () => {
       });
       completeSetup();
       navigate('/dashboard'); // Skip straight to dashboard
+    } catch (err) {
+      setSaveError(err.message || 'Could not save your business details. Please try again.');
     } finally {
       setIsSaving(false);
     }
@@ -170,7 +182,7 @@ const BusinessSetup = () => {
                 <TextInput label="Address Line 1" placeholder="123 Main St" {...register('addressLine1')} error={errors.addressLine1?.message} />
                 <div className="grid grid-cols-2 gap-4">
                   <TextInput label="City" placeholder="Mumbai" {...register('city')} error={errors.city?.message} />
-                  <TextInput label="State" placeholder="Maharashtra" {...register('state')} error={errors.state?.message} />
+                  <Select label="State" options={STATE_OPTIONS} {...register('state')} error={errors.state?.message} />
                 </div>
                 <TextInput label="Pincode" placeholder="400001" {...register('pincode')} error={errors.pincode?.message} />
               </>
@@ -182,9 +194,10 @@ const BusinessSetup = () => {
                 <Select 
                   label="Default Tax Type" 
                   options={[
-                    { value: 'inclusive', label: 'Tax Inclusive' },
-                    { value: 'exclusive', label: 'Tax Exclusive' },
-                    { value: 'none', label: 'No Tax' }
+                    { value: 'inclusive', label: 'Tax Inclusive (prices include GST)' },
+                    { value: 'exclusive', label: 'Tax Exclusive (GST added on top)' },
+                    { value: 'composition', label: 'Composition Scheme (Bill of Supply)' },
+                    { value: 'none', label: 'No GST (not registered)' }
                   ]}
                   {...register('defaultTaxType')} 
                   error={errors.defaultTaxType?.message} 
@@ -199,9 +212,9 @@ const BusinessSetup = () => {
                 <Select 
                   label="Default Payment Mode" 
                   options={[
-                    { value: 'cash', label: 'Cash' },
-                    { value: 'upi', label: 'UPI' },
-                    { value: 'bank', label: 'Bank Transfer' }
+                    { value: 'Cash', label: 'Cash' },
+                    { value: 'UPI', label: 'UPI' },
+                    { value: 'Bank Transfer', label: 'Bank Transfer' }
                   ]}
                   {...register('paymentMode')} 
                   error={errors.paymentMode?.message} 
@@ -209,6 +222,8 @@ const BusinessSetup = () => {
                 <TextInput label="UPI ID (Optional)" placeholder="merchant@upi" {...register('upiId')} error={errors.upiId?.message} />
               </>
             )}
+
+            {saveError && <Alert variant="error" message={saveError} />}
 
             <div className="flex flex-col sm:flex-row items-center justify-between mt-6 pt-6 border-t border-bb2 gap-4">
               <div className="order-2 sm:order-1">

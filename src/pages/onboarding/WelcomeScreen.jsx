@@ -19,7 +19,7 @@ const WelcomeScreen = () => {
           
           <h2 className="text-3xl font-bold text-navy mb-4 tracking-tight">Welcome, {displayName}!</h2>
           <p className="text-[14px] text-ink2 mb-8 leading-relaxed">
-            Your business profile has been configured successfully. You're now ready to start creating professional GST invoices and managing your catalog.
+            Your business profile has been configured. You're now ready to start creating professional GST invoices and managing your catalog.
           </p>
 
           <Link to="/dashboard">

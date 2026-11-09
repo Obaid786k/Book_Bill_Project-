@@ -83,7 +83,7 @@ const ForgotPassword = () => {
         await authService.resetPassword(submittedEmail);
         setIsTimedOut(false);
         setResetCount(prev => prev + 1);
-        toast("Reset link sent ✓");
+        toast.success("Reset link sent");
       });
     } catch (err) {
       setResendError(err.message || 'Failed to resend reset link');

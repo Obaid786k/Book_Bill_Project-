@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabaseClient';
 import { useAuthStore } from '../store/authStore';
+import { cached, mutating } from '../lib/dataCache';
 import { handleSupabaseError } from '../utils/handleSupabaseError';
 
 const DEFAULT_SHOP = {
@@ -15,7 +16,7 @@ const DEFAULT_SHOP = {
   bankAcc: "",
   ifsc: "",
   defaultTaxType: "inclusive",
-  defaultTerms: "1. Goods once sold will not be taken back or exchanged.\n2. Subject to local jurisdiction."
+  defaultTerms: "• Goods once sold will not be taken back or exchanged.\n• E. & O.E. (errors and omissions excepted).\n• Subject to local jurisdiction."
 };
 
 // Maps a `businesses` row (snake_case, DB shape) to the flat camelCase
@@ -33,6 +34,8 @@ const toShopShape = (row) => ({
   bankAcc: row.bank_acc,
   ifsc: row.ifsc,
   defaultTaxType: row.default_tax_type,
+  defaultCopyType: row.default_copy_type,
+  defaultHsnBehavior: row.default_hsn_behavior,
   defaultTerms: row.default_terms,
 });
 
@@ -101,3 +104,7 @@ export const shopService = {
     return toShopShape(updated);
   }
 };
+
+// Speed: remember reads for a few minutes; any save/delete clears the memory (src/lib/dataCache.js).
+shopService.getProfile = cached('shop.profile', shopService.getProfile);
+shopService.saveProfile = mutating(shopService.saveProfile);

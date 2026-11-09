@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { Suspense, useState } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { Button } from '../components/common/Button';
 import { useToast } from '../components/feedback/Toast';
@@ -62,7 +62,7 @@ const MarketingLayout = () => {
       
       {/* Main Content Area */}
       <main className="flex-1">
-        <Outlet />
+        <Suspense fallback={<div className="min-h-[60vh]" />}><Outlet /></Suspense>
       </main>
       
       {/* Marketing Footer */}

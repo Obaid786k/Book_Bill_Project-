@@ -1,41 +1,27 @@
 import React from 'react';
-import { Card } from '../../../components/common/Card';
 
-export const DashboardSkeleton = () => {
-  const pulse = "animate-pulse bg-bb2 rounded";
-  
-  return (
-    <div className="flex flex-col gap-6">
-      {/* Quick Actions Skeleton */}
-      <div className="flex gap-3 py-2">
-        {[1, 2, 3, 4].map(i => <div key={i} className={`${pulse} h-[34px] w-[110px] rounded-[5px]`}></div>)}
+const block = 'animate-pulse bg-bb2 rounded';
+
+// Loading shape of the dashboard (same order as the real page).
+export const DashboardSkeleton = () => (
+  <div className="flex flex-col gap-4" aria-busy="true" aria-label="Loading dashboard">
+    <div className="flex flex-wrap items-center justify-between gap-4 mb-1">
+      <div className="space-y-2">
+        <div className={`${block} h-4 w-56`} />
+        <div className={`${block} h-7 w-64`} />
       </div>
-      
-      {/* Stats Skeleton */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {[1, 2, 3, 4].map(i => (
-          <Card key={i} className="p-5 flex flex-col h-[110px]">
-            <div className={`${pulse} h-3 w-1/2 mb-4`}></div>
-            <div className={`${pulse} h-6 w-3/4 mb-2`}></div>
-            <div className={`${pulse} h-2 w-1/3 mt-auto`}></div>
-          </Card>
-        ))}
-      </div>
-      
-      {/* Activity Skeleton */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {[1, 2].map(i => (
-          <Card key={i} className="flex flex-col h-[280px]">
-            <div className="p-4 border-b border-bb flex justify-between">
-              <div className={`${pulse} h-4 w-1/4`}></div>
-              <div className={`${pulse} h-3 w-12`}></div>
-            </div>
-            <div className="p-4 flex flex-col gap-4">
-              {[1, 2, 3, 4].map(j => <div key={j} className={`${pulse} h-8 w-full`}></div>)}
-            </div>
-          </Card>
-        ))}
+      <div className="flex gap-2">
+        <div className={`${block} h-10 w-32`} />
+        <div className={`${block} h-10 w-28`} />
       </div>
     </div>
-  );
-};
+    <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
+      {[0, 1, 2, 3].map((i) => <div key={i} className={`${block} h-[104px] rounded-[12px]`} />)}
+    </div>
+    <div className={`${block} h-[290px] rounded-[12px]`} />
+    <div className="flex flex-wrap gap-4">
+      <div className={`${block} h-[240px] rounded-[12px] flex-[2_1_420px]`} />
+      <div className={`${block} h-[240px] rounded-[12px] flex-[1_1_300px]`} />
+    </div>
+  </div>
+);

@@ -1,92 +1,72 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { adminService } from '../../services/adminService';
 import { StatCard } from '../../components/common/StatCard';
 import { DataTable } from '../../components/common/DataTable';
 import { Activity, Clock, Zap, AlertTriangle } from 'lucide-react';
+import { useAdminData } from './useAdminData';
+import { AdminError, AdminHeader } from './AdminParts';
+
+const ms = (v) => (v == null ? '—' : `${v} ms`);
 
 export const Performance = () => {
-  const [data, setData] = useState(null);
+  const { data, error } = useAdminData(adminService.getPerformanceMetrics);
 
-  useEffect(() => {
-    adminService.getPerformanceMetrics().then(setData);
-  }, []);
-
+  if (error) return <AdminError message={error} />;
   if (!data) return <div className="p-8">Loading performance data...</div>;
-
-  const endpointData = [
-    { id: 1, route: 'POST /api/v1/invoices', avgTime: '124ms', p99Time: '310ms', errorRate: '0.01%' },
-    { id: 2, route: 'GET /api/v1/products', avgTime: '45ms', p99Time: '89ms', errorRate: '0.00%' },
-    { id: 3, route: 'GET /api/v1/customers/search', avgTime: '210ms', p99Time: '540ms', errorRate: '0.05%' },
-    { id: 4, route: 'POST /api/v1/auth/login', avgTime: '180ms', p99Time: '420ms', errorRate: '0.12%' },
-    { id: 5, route: 'GET /api/v1/reports/monthly', avgTime: '850ms', p99Time: '1.2s', errorRate: '0.00%' },
-  ];
 
   const columns = [
     {
-      header: 'Endpoint Route',
-      accessor: (row) => <span className="font-mono text-sm text-navy font-bold">{row.route}</span>
+      header: 'Query',
+      accessor: (row) => <span className="font-mono text-[12.5px] text-navy block max-w-[520px] truncate" title={row.query}>{row.query}</span>,
     },
     {
-      header: 'Avg Response Time',
-      accessor: (row) => <span className="font-mono text-sm text-ink2">{row.avgTime}</span>
+      header: 'Calls',
+      accessor: (row) => <span className="font-mono text-sm text-ink2">{row.calls.toLocaleString('en-IN')}</span>,
     },
     {
-      header: 'p99 Latency',
-      accessor: (row) => <span className="font-mono text-sm text-ink2">{row.p99Time}</span>
+      header: 'Avg Time',
+      accessor: (row) => <span className="font-mono text-sm text-ink2">{ms(row.avgMs)}</span>,
     },
     {
-      header: 'Error Rate',
+      header: 'Slowest',
       accessor: (row) => (
-        <span className={`font-mono text-sm font-bold ${parseFloat(row.errorRate) > 0.05 ? 'text-red' : 'text-green'}`}>
-          {row.errorRate}
-        </span>
-      )
-    }
+        <span className={`font-mono text-sm font-bold ${row.maxMs > 1000 ? 'text-red' : 'text-green'}`}>{ms(row.maxMs)}</span>
+      ),
+    },
   ];
+
+  const since = data.statsSince ? new Date(data.statsSince).toLocaleString('en-IN') : 'database start';
+  const qpm = data.queriesPerMinute >= 1000 ? `${(data.queriesPerMinute / 1000).toFixed(1)}k` : data.queriesPerMinute.toFixed(1);
 
   return (
     <div>
-      <div className="mb-8">
-        <h1 className="text-2xl font-display font-bold text-ink">API Performance</h1>
-        <p className="text-sm text-ink2 mt-1">Platform-wide routing and response metrics.</p>
-      </div>
+      <AdminHeader title="API Performance" description={`Database work done by the app since ${since}.`} />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <StatCard 
-          compact
-          title="Avg Response Time"
-          value={`${data.avgResponseTimeMs} ms`}
-          icon={Clock}
-        />
-        <StatCard 
-          compact
-          title="p99 Response Time"
-          value={`${data.p99ResponseTimeMs} ms`}
-          icon={Activity}
-        />
-        <StatCard 
+        <StatCard compact title="Avg Response Time" value={ms(data.avgResponseTimeMs)} subtitle="Per app query" icon={Clock} />
+        <StatCard compact title="Slowest Query" value={ms(data.maxResponseTimeMs)} subtitle="Single worst run" icon={Activity} />
+        <StatCard
           compact
           title="Error Rate"
-          value={data.errorRate}
+          value={`${data.failedPct}%`}
+          subtitle="Failed database transactions"
           icon={AlertTriangle}
-          className="border-l-4 border-l-green"
+          className={data.failedPct > 1 ? 'border-l-4 border-l-red' : 'border-l-4 border-l-green'}
         />
-        <StatCard 
-          compact
-          title="Requests / Min"
-          value={`${(data.requestsPerMinute / 1000).toFixed(1)}k`}
-          icon={Zap}
-        />
-      </div>
-      
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-sm font-bold text-navy uppercase tracking-wider">Endpoint Telemetry</h2>
+        <StatCard compact title="Queries / Min" value={data.available ? qpm : '—'} subtitle={`${data.totalQueries.toLocaleString('en-IN')} in total`} icon={Zap} />
       </div>
 
-      <DataTable 
-        data={endpointData}
-        columns={columns}
-      />
+      <div className="mb-4 flex items-center justify-between">
+        <h2 className="text-sm font-bold text-navy uppercase tracking-wider">Heaviest app queries</h2>
+      </div>
+
+      {data.available ? (
+        <DataTable data={data.slowest} columns={columns} emptyMessage="No app queries recorded yet." />
+      ) : (
+        <p className="p-4 rounded-lg bg-row-alt text-[13px] text-ink2">
+          Query timing needs the <b>pg_stat_statements</b> extension. Turn it on in the Supabase dashboard under Database → Extensions.
+        </p>
+      )}
     </div>
   );
 };

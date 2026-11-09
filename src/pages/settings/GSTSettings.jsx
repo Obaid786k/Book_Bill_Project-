@@ -1,16 +1,20 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { PageHeader } from '../../components/common/PageHeader';
 import { settingsService } from '../../services/settingsService';
 import { Card } from '../../components/common/Card';
 import { Skeleton } from '../../components/feedback/Skeleton';
+import { useToast } from '../../components/feedback/Toast';
 
 export const GSTSettings = () => {
   const [profile, setProfile] = useState(null);
   const [saveStatus, setSaveStatus] = useState('');
   const saveTimerRef = useRef(null);
+  const { toast } = useToast();
 
   useEffect(() => {
-    settingsService.getGSTSettings().then(setProfile);
-  }, []);
+    settingsService.getGSTSettings().then(setProfile)
+      .catch(() => toast.error('Could not load settings. Please refresh the page.'));
+  }, [toast]);
 
   const debouncedSave = useCallback(
     (data) => {
@@ -40,31 +44,18 @@ export const GSTSettings = () => {
   };
 
   if (!profile) return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between mb-8">
-        <div className="space-y-2">
-          <Skeleton className="h-7 w-36" />
-          <Skeleton className="h-4 w-60" />
-        </div>
-      </div>
+    <div className="max-w-5xl mx-auto space-y-6">
+      <PageHeader />
       <Card className="p-6"><Skeleton className="h-4 w-40 mb-6" /><Skeleton className="h-9" /></Card>
       <Card className="p-6"><Skeleton className="h-4 w-40 mb-6" /><Skeleton className="h-9" /></Card>
     </div>
   );
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-2xl font-display font-bold text-ink">GST Settings</h1>
-          <p className="text-sm text-ink2 mt-1">Manage your GST identification and HSN rules.</p>
-        </div>
-        {saveStatus && (
-          <span className="text-xs font-bold text-ink3 bg-row-alt px-3 py-1 rounded-full animate-fade-in">
+    <div className="max-w-5xl mx-auto">
+      <PageHeader actions={saveStatus && (<span className="text-xs font-bold text-ink3 bg-row-alt px-3 py-1 rounded-full animate-fade-in">
             {saveStatus}
-          </span>
-        )}
-      </div>
+          </span>)} />
 
       <div className="space-y-6">
         <Card className="p-6">
@@ -99,7 +90,7 @@ export const GSTSettings = () => {
             >
               <option value="optional">Optional (Do not enforce)</option>
               <option value="mandatory">Mandatory for all products</option>
-              <option value="auto">Auto-suggest based on category</option>
+              <option value="auto" disabled>Auto-suggest based on category (Coming soon)</option>
             </select>
             <p className="text-xs text-ink2 mt-1.5">Enforce HSN codes during billing as per your turnover threshold.</p>
           </div>

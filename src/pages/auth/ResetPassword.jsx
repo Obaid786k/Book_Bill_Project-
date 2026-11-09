@@ -31,6 +31,16 @@ const resetSchema = z.object({
   }
 });
 
+// Set in main.jsx when this tab was opened from a recovery email link.
+// A normal logged-in session is NOT enough to set a new password here
+// (that would skip the current-password check in Account → Security).
+const hasRecoveryMarker = () => {
+  try { return sessionStorage.getItem('bb_recovery') === '1'; } catch { return false; }
+};
+const clearRecoveryMarker = () => {
+  try { sessionStorage.removeItem('bb_recovery'); } catch { /* ignore */ }
+};
+
 const ResetPassword = () => {
   const [status, setStatus] = useState('checking'); // 'checking' | 'valid' | 'invalid' | 'success'
   const [errorMessage, setErrorMessage] = useState('');
@@ -70,18 +80,19 @@ const ResetPassword = () => {
 
     let isMounted = true;
 
-    // 2. Check if a recovery session is already active
+    // 2. A session counts only if this tab came from a recovery link
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!isMounted) return;
-      if (session) {
+      if (session && hasRecoveryMarker()) {
         setStatus('valid');
       }
     });
 
     // 3. Listen for PASSWORD_RECOVERY event
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (!isMounted) return;
-      if (event === 'PASSWORD_RECOVERY' || (session && event === 'SIGNED_IN')) {
+      if (event === 'PASSWORD_RECOVERY') {
+        try { sessionStorage.setItem('bb_recovery', '1'); } catch { /* ignore */ }
         setStatus('valid');
       }
     });
@@ -90,7 +101,7 @@ const ResetPassword = () => {
     const timeoutId = setTimeout(async () => {
       if (!isMounted) return;
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
+      if (!session || !hasRecoveryMarker()) {
         const friendly = getFriendlyError({ code: 'otp_expired' });
         setErrorMessage(friendly.message);
         setStatus('invalid');
@@ -106,7 +117,8 @@ const ResetPassword = () => {
 
   const onSubmit = async (data) => {
     try {
-      await settingsService.changePassword(null, data.password);
+      await settingsService.setRecoveredPassword(data.password);
+      clearRecoveryMarker(); // a recovery link works once
       setStatus('success');
       localStorage.setItem('bb_password_reset', 'true');
     } catch (err) {

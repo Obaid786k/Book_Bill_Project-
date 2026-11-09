@@ -1,84 +1,56 @@
-import React, { useState, useEffect } from 'react';
-import { accountService } from '../../services/accountService';
-import { Card } from '../../components/common/Card';
+import React, { useState, useEffect, useId } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { PageHeader } from '../../components/common/PageHeader';
+import { ChartCard, ChartTooltip } from '../../components/charts/ChartParts';
+import { CHART, axisProps, gridProps, lineCursor, num } from '../../components/charts/chartTheme';
+import { accountService } from '../../services/accountService';
 
 export const UsageStatistics = () => {
   const [data, setData] = useState([]);
+  const gradId = useId().replace(/:/g, '');
 
   useEffect(() => {
     accountService.getUsageStatistics().then(setData);
   }, []);
 
   return (
-    <div>
-      <div className="mb-8">
-        <h1 className="text-2xl font-display font-bold text-ink">Usage Statistics</h1>
-        <p className="text-sm text-ink2 mt-1">System activity and logins over the last 7 days.</p>
-      </div>
+    <div className="max-w-5xl mx-auto flex flex-col gap-4">
+      <PageHeader className="!mb-1" />
 
-      <Card className="p-6">
-        <h2 className="text-[13px] font-bold text-navy uppercase tracking-wider mb-6 pb-2 border-b border-bb2">
-          System Actions
-        </h2>
-        
-        <div className="h-[300px] w-full">
+      <ChartCard title="Recorded actions" sub="Last 7 days · bills saved, status changes, settings changes">
+        <div style={{ height: CHART.height }}>
           {data.length > 0 ? (
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+              <AreaChart data={data} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
                 <defs>
-                  <linearGradient id="colorActions" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#0A2540" stopOpacity={0.2} />
-                    <stop offset="95%" stopColor="#0A2540" stopOpacity={0} />
+                  <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={CHART.current} stopOpacity={0.24} />
+                    <stop offset="100%" stopColor={CHART.current} stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                <XAxis 
-                  dataKey="name" 
-                  axisLine={false} 
-                  tickLine={false} 
-                  tick={{ fontSize: 12, fill: '#64748B' }} 
-                  dy={10}
-                />
-                <YAxis 
-                  axisLine={false} 
-                  tickLine={false} 
-                  tick={{ fontSize: 12, fill: '#64748B' }} 
-                />
-                <Tooltip 
-                  contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                  labelStyle={{ fontWeight: 'bold', color: '#0F172A', marginBottom: '4px' }}
-                />
-                <Area 
-                  type="monotone" 
-                  dataKey="actions" 
-                  stroke="#0A2540" 
-                  strokeWidth={2}
-                  fillOpacity={1} 
-                  fill="url(#colorActions)" 
-                  name="Actions Performed"
-                />
+                <CartesianGrid {...gridProps} />
+                <XAxis dataKey="name" {...axisProps} />
+                <YAxis {...axisProps} allowDecimals={false} />
+                <Tooltip content={<ChartTooltip format={num} />} cursor={lineCursor} />
+                <Area type="monotone" dataKey="actions" name="Actions" stroke={CHART.current} strokeWidth={2.5} fill={`url(#${gradId})`} activeDot={{ r: 4 }} />
               </AreaChart>
             </ResponsiveContainer>
           ) : (
-            <div className="w-full h-full flex items-center justify-center text-sm text-ink2">Loading chart...</div>
+            <div className="w-full h-full flex items-center justify-center text-[13px] text-ink2">Loading chart...</div>
           )}
         </div>
-      </Card>
-      
-      <Card className="p-6 mt-6">
-        <h2 className="text-[13px] font-bold text-navy uppercase tracking-wider mb-6 pb-2 border-b border-bb2">
-          Weekly Logins
-        </h2>
-        <div className="flex gap-2">
-          {data.map((day, idx) => (
-            <div key={idx} className="flex-1 bg-row-alt rounded p-3 text-center">
-              <p className="text-xs text-ink2 mb-1">{day.name}</p>
-              <p className="text-lg font-bold text-navy">{day.logins}</p>
+      </ChartCard>
+
+      <ChartCard title="Bills created" sub="Last 7 days">
+        <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
+          {data.map((day) => (
+            <div key={day.name} className="bg-row-alt rounded-lg p-3 text-center">
+              <p className="text-[11px] text-ink2 mb-1">{day.name}</p>
+              <p className="text-[18px] font-bold text-navy-900 tabular-nums">{day.bills}</p>
             </div>
           ))}
         </div>
-      </Card>
+      </ChartCard>
     </div>
   );
 };

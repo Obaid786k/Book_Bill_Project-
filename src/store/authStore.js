@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { authService } from '../services/authService';
+import { clearDataCache } from '../lib/dataCache';
 
 // No more zustand `persist` middleware — the real session lives in
 // Supabase (its own localStorage key, managed by supabase-js), so
@@ -11,19 +12,25 @@ import { authService } from '../services/authService';
 // even if initialize() is somehow called more than once.
 let _listenerRegistered = false;
 
-export const useAuthStore = create((set) => ({
+export const useAuthStore = create((set, get) => ({
   user: null,
   isAuthenticated: false,
   isBusinessSetup: false,
   isAdmin: false,
   isInitializing: true, // true until the first session check completes
 
-  login: (userData) => set({
-    user: userData,
-    isAuthenticated: true,
-    isBusinessSetup: userData.hasCompletedSetup || false,
-    isAdmin: userData.isAdmin || false,
-  }),
+  login: (userData) => {
+    clearDataCache(); // fresh start for this user
+    set({
+      user: userData,
+      isAuthenticated: true,
+      isBusinessSetup: userData.hasCompletedSetup || false,
+      isAdmin: userData.isAdmin || false,
+    });
+  },
+
+  // My profile page: merge changed fields (name, avatarUrl, pendingEmail).
+  updateUser: (partial) => set((state) => ({ user: state.user ? { ...state.user, ...partial } : state.user })),
 
   completeSetup: () => set((state) => ({
     isBusinessSetup: true,
@@ -32,6 +39,7 @@ export const useAuthStore = create((set) => ({
 
   logout: async () => {
     await authService.logout();
+    clearDataCache();
     set({
       user: null,
       isAuthenticated: false,
@@ -90,7 +98,33 @@ export const useAuthStore = create((set) => ({
       }
 
       if (!session) {
+        clearDataCache();
         set({ user: null, isAuthenticated: false, isBusinessSetup: false, isAdmin: false });
+        return;
+      }
+
+      // Signed in from another tab (e.g. after a password reset there).
+      // Supabase also re-sends SIGNED_IN when a tab regains focus, so only
+      // reload when this tab isn't already signed in as this user.
+      // setTimeout: Supabase calls inside this callback can deadlock.
+      // USER_UPDATED: e.g. the new email was confirmed — reload name/email/photo.
+      if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
+        const { isAuthenticated, user } = get();
+        if (event === 'SIGNED_IN' && isAuthenticated && user?.id === session.user?.id) return;
+        if (user?.id !== session.user?.id) clearDataCache(); // different user — never show their data
+        setTimeout(async () => {
+          try {
+            const userData = await authService.getCurrentUser();
+            if (userData) {
+              set({
+                user: userData,
+                isAuthenticated: true,
+                isBusinessSetup: userData.hasCompletedSetup || false,
+                isAdmin: userData.isAdmin || false,
+              });
+            }
+          } catch { /* keep current state */ }
+        }, 0);
       }
     });
   },

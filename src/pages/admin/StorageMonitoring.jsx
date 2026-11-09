@@ -1,75 +1,67 @@
-import React, { useState, useEffect } from 'react';
-import { adminService } from '../../services/adminService';
+import React from 'react';
+import { adminService, formatBytes } from '../../services/adminService';
 import { StatCard } from '../../components/common/StatCard';
 import { Card } from '../../components/common/Card';
-import { HardDrive, PieChart } from 'lucide-react';
+import { HardDrive, Database, Files } from 'lucide-react';
+import { useAdminData } from './useAdminData';
+import { AdminError, AdminHeader } from './AdminParts';
 
 export const StorageMonitoring = () => {
-  const [data, setData] = useState(null);
+  const { data, error } = useAdminData(adminService.getStorageMonitoring);
 
-  useEffect(() => {
-    adminService.getStorageMonitoring().then(setData);
-  }, []);
-
+  if (error) return <AdminError message={error} />;
   if (!data) return <div className="p-8">Loading storage info...</div>;
 
   return (
     <div>
-      <div className="mb-8">
-        <h1 className="text-2xl font-display font-bold text-ink">Storage Monitoring</h1>
-        <p className="text-sm text-ink2 mt-1">Global platform storage utilization across all regions.</p>
-      </div>
+      <AdminHeader title="Storage Monitoring" description="Database and file storage used by the whole platform." />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-        <StatCard 
-          compact
-          title="Total Storage Used"
-          value={`${data.totalUsedTb} TB`}
-          icon={HardDrive}
-        />
-        <StatCard 
-          compact
-          title="Total Allocated"
-          value={`${data.totalAllocatedTb} TB`}
-          icon={PieChart}
-        />
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <StatCard compact title="Total Storage Used" value={formatBytes(data.totalBytes)} subtitle="Database + files" icon={HardDrive} />
+        <StatCard compact title="Database" value={formatBytes(data.databaseBytes)} subtitle="Bills, products, accounts…" icon={Database} />
+        <StatCard compact title="Files" value={formatBytes(data.fileBytes)} subtitle={`${data.totalFiles.toLocaleString('en-IN')} files (photos etc.)`} icon={Files} />
       </div>
 
       <Card className="overflow-hidden">
         <div className="p-4 bg-paper border-b border-bb2">
           <h2 className="text-[13px] font-bold text-navy uppercase tracking-wider">Bucket Allocation</h2>
         </div>
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="bg-row-alt border-b border-bb2">
-              <th className="py-3 px-4 text-xs font-bold text-ink2 uppercase tracking-wider">Bucket Name</th>
-              <th className="py-3 px-4 text-xs font-bold text-ink2 uppercase tracking-wider text-right">Used (TB)</th>
-              <th className="py-3 px-4 text-xs font-bold text-ink2 uppercase tracking-wider text-right">Capacity (TB)</th>
-              <th className="py-3 px-4 text-xs font-bold text-ink2 uppercase tracking-wider text-center">Status</th>
-            </tr>
-          </thead>
-          <tbody className="text-sm">
-            {data.buckets.map((bucket, index) => {
-              const bucketUsed = (bucket.usedTb / bucket.capacityTb) * 100;
-              return (
-                <tr key={index} className="border-b border-bb2 hover:bg-row-hover transition-colors">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-row-alt border-b border-bb2">
+                <th className="py-3 px-4 text-xs font-bold text-ink2 uppercase tracking-wider">Bucket Name</th>
+                <th className="py-3 px-4 text-xs font-bold text-ink2 uppercase tracking-wider text-right">Files</th>
+                <th className="py-3 px-4 text-xs font-bold text-ink2 uppercase tracking-wider text-right">Used</th>
+                <th className="py-3 px-4 text-xs font-bold text-ink2 uppercase tracking-wider text-right">Max file size</th>
+                <th className="py-3 px-4 text-xs font-bold text-ink2 uppercase tracking-wider text-center">Access</th>
+              </tr>
+            </thead>
+            <tbody className="text-sm">
+              {data.buckets.length === 0 && (
+                <tr><td colSpan={5} className="py-6 px-4 text-center text-ink2">No storage buckets yet.</td></tr>
+              )}
+              {data.buckets.map((bucket) => (
+                <tr key={bucket.name} className="border-b border-bb2 hover:bg-row-hover transition-colors">
                   <td className="py-3 px-4 font-medium text-navy flex items-center gap-2">
                     <HardDrive size={14} className="text-ink3" />
                     {bucket.name}
                   </td>
-                  <td className="py-3 px-4 text-right text-ink2 font-mono">{bucket.usedTb}</td>
-                  <td className="py-3 px-4 text-right text-ink2 font-mono">{bucket.capacityTb}</td>
+                  <td className="py-3 px-4 text-right text-ink2 font-mono">{bucket.files.toLocaleString('en-IN')}</td>
+                  <td className="py-3 px-4 text-right text-ink2 font-mono">{formatBytes(bucket.bytes)}</td>
+                  <td className="py-3 px-4 text-right text-ink2 font-mono">{bucket.fileSizeLimit ? formatBytes(bucket.fileSizeLimit) : 'No limit'}</td>
                   <td className="py-3 px-4 text-center">
-                    <span className={`inline-block px-2 py-0.5 rounded text-[11px] font-bold ${bucketUsed > 80 ? 'bg-red/10 text-red' : 'bg-green/10 text-green'}`}>
-                      {bucketUsed.toFixed(1)}%
+                    <span className={`inline-block px-2 py-0.5 rounded text-[11px] font-bold ${bucket.public ? 'bg-gold/20 text-gold-dk' : 'bg-green/10 text-green'}`}>
+                      {bucket.public ? 'Public' : 'Private'}
                     </span>
                   </td>
                 </tr>
-              );
-            })}
-          </tbody>
-        </table>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </Card>
+      <p className="mt-3 text-[12.5px] text-ink2">Your plan's storage limit is shown in the Supabase dashboard (Settings → Billing).</p>
     </div>
   );
 };

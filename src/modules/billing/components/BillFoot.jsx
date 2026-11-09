@@ -1,6 +1,12 @@
 import React from 'react';
 import { numToWords } from '../../../utils/numToWords';
 import { formatCurrency } from '../../../utils/gstCalc';
+import { AutoTextarea } from '../../../components/common/AutoTextarea';
+
+// Short invoices usually carry 3-6 terms; more than 6 gets cramped on one A4 page.
+const MAX_TERMS = 6;
+const BULLET = '• ';
+const countPoints = (text = '') => text.split('\n').filter((l) => l.trim()).length;
 
 export const BillFoot = ({ totals, settings, meta, onMetaChange }) => {
   const { gstOn, tt } = settings;
@@ -16,10 +22,12 @@ export const BillFoot = ({ totals, settings, meta, onMetaChange }) => {
       const lines = textBefore.split('\n');
       const currentLine = lines[lines.length - 1];
 
-      const match = currentLine.match(/^(\d+)\.\s(.*)$/);
+      // Keeps lists going: "• text" -> new "• ", "1. text" -> "2. ". Enter on an empty point ends the list.
+      const bullet = currentLine.match(/^•\s?(.*)$/);
+      const match = bullet ? [null, null, bullet[1]] : currentLine.match(/^(\d+)\.\s(.*)$/);
       if (match) {
         e.preventDefault();
-        const number = parseInt(match[1], 10);
+        const number = bullet ? null : parseInt(match[1], 10);
         const text = match[2];
 
         if (text.trim() === '') {
@@ -32,7 +40,8 @@ export const BillFoot = ({ totals, settings, meta, onMetaChange }) => {
           return;
         }
 
-        const insertText = `\n${number + 1}. `;
+        if (fieldKey === 'terms' && countPoints(value) >= MAX_TERMS) return; // limit reached
+        const insertText = bullet ? `\n${BULLET}` : `\n${number + 1}. `;
         const newTextBefore = textBefore + insertText;
         const newText = newTextBefore + value.substring(selectionStart);
         onMetaChange(fieldKey, newText);
@@ -52,24 +61,38 @@ export const BillFoot = ({ totals, settings, meta, onMetaChange }) => {
         <div className="tn-wrap">
           <div className="tn-col">
             <div className="tn-hdr">Terms & Conditions</div>
-            <textarea 
-              value={meta.terms} 
-              onChange={(e) => onMetaChange('terms', e.target.value)} 
+            <AutoTextarea
+              value={meta.terms}
+              minHeight={68}
+              onChange={(e) => onMetaChange('terms', e.target.value)}
               onKeyDown={(e) => handleListKeyDown(e, 'terms')}
+              placeholder={`${BULLET}Goods once sold will not be taken back`}
+              aria-label="Terms and conditions"
             />
+            <div className="no-print" style={{ fontSize: '10px', marginTop: '2px', color: countPoints(meta.terms) > MAX_TERMS ? 'var(--red)' : 'var(--ink3)' }}>
+              {countPoints(meta.terms)}/{MAX_TERMS} points{countPoints(meta.terms) > MAX_TERMS ? ' - keep it short so it fits the page' : ''}
+            </div>
           </div>
           <div className="tn-col">
             <div className="tn-hdr">Notes</div>
-            <textarea 
-              value={meta.notes} 
-              onChange={(e) => onMetaChange('notes', e.target.value)} 
+            <AutoTextarea
+              value={meta.notes}
+              minHeight={68}
+              onChange={(e) => onMetaChange('notes', e.target.value)}
               onKeyDown={(e) => handleListKeyDown(e, 'notes')}
-              placeholder="Additional notes..." 
+              placeholder="Additional notes..."
+              aria-label="Notes"
             />
           </div>
         </div>
       </div>
       <div className="bf-r">
+        {totals.sumDisc > 0.004 && (
+          <div className="tot-row">
+            <span className="tl">Discount{gstOn && settings.priceMode === 'inclusive' ? ' (incl. GST)' : ''}</span>
+            <span className="tv">−{formatCurrency(totals.sumDisc)}</span>
+          </div>
+        )}
         <div className="tot-row">
           <span className="tl">{gstOn ? "Taxable Value" : "Subtotal"}</span>
           <span className="tv">{formatCurrency(totals.sumAmt)}</span>

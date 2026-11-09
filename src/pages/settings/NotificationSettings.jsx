@@ -1,17 +1,21 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { PageHeader } from '../../components/common/PageHeader';
 import { settingsService } from '../../services/settingsService';
 import { Card } from '../../components/common/Card';
 import { clsx } from 'clsx';
 import { Skeleton } from '../../components/feedback/Skeleton';
+import { useToast } from '../../components/feedback/Toast';
 
 export const NotificationSettings = () => {
   const [profile, setProfile] = useState(null);
   const [saveStatus, setSaveStatus] = useState('');
   const saveTimerRef = useRef(null);
+  const { toast } = useToast();
 
   useEffect(() => {
-    settingsService.getNotificationSettings().then(setProfile);
-  }, []);
+    settingsService.getNotificationSettings().then(setProfile)
+      .catch(() => toast.error('Could not load settings. Please refresh the page.'));
+  }, [toast]);
 
   const debouncedSave = useCallback(
     (data) => {
@@ -41,13 +45,8 @@ export const NotificationSettings = () => {
   };
 
   if (!profile) return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between mb-8">
-        <div className="space-y-2">
-          <Skeleton className="h-7 w-36" />
-          <Skeleton className="h-4 w-56" />
-        </div>
-      </div>
+    <div className="max-w-5xl mx-auto space-y-4">
+      <PageHeader />
       {[1,2,3,4].map(i => (
         <Card key={i} className="p-4 flex items-center justify-between">
           <div className="space-y-2">
@@ -61,18 +60,10 @@ export const NotificationSettings = () => {
   );
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-2xl font-display font-bold text-ink">Notifications</h1>
-          <p className="text-sm text-ink2 mt-1">Manage when and how you receive alerts.</p>
-        </div>
-        {saveStatus && (
-          <span className="text-xs font-bold text-ink3 bg-row-alt px-3 py-1 rounded-full animate-fade-in">
+    <div className="max-w-5xl mx-auto">
+      <PageHeader actions={saveStatus && (<span className="text-xs font-bold text-ink3 bg-row-alt px-3 py-1 rounded-full animate-fade-in">
             {saveStatus}
-          </span>
-        )}
-      </div>
+          </span>)} />
 
       <div className="space-y-4">
         <Card className="p-4 flex items-center justify-between hover:border-navy-lt/30 transition-colors">

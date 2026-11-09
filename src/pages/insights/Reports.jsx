@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { PageHeader } from '../../components/common/PageHeader';
 import { Button } from '../../components/common/Button';
 import { FileText, Download, Plus, X, Sparkles } from 'lucide-react';
 import { ComingSoonBadge } from '../../components/common/ComingSoonBadge';
@@ -14,24 +15,17 @@ const REPORTS = [
 ];
 
 export const Reports = () => {
-  const [exporting, setExporting] = useState(null);
   const [showCustomBuilder, setShowCustomBuilder] = useState(false);
   const { toast } = useToast();
 
-  const handleExport = (id) => {
-    setExporting(id);
-    setTimeout(() => {
-      setExporting(null);
-      toast("Report generated and downloaded successfully!");
-    }, 1200);
+  // Real CSV export isn't built yet — say so honestly.
+  const handleExport = () => {
+    toast.info("CSV export is coming soon.");
   };
 
   return (
-    <div className="max-w-4xl mx-auto">
-      <div className="mb-6">
-        <h1 className="text-2xl font-display font-bold text-ink">Business Reports</h1>
-        <p className="text-sm text-ink2 mt-1">Export detailed CSV or PDF reports for accounting and compliance.</p>
-      </div>
+    <div className="max-w-5xl mx-auto">
+      <PageHeader />
 
       <div className="flex flex-col gap-3">
         {/* Custom Report Placeholder */}
@@ -67,11 +61,9 @@ export const Reports = () => {
             <Button 
               variant="outline" 
               className="shrink-0"
-              isLoading={exporting === report.id}
-              disabled={exporting && exporting !== report.id}
-              onClick={() => handleExport(report.id)}
+              onClick={handleExport}
             >
-              <Download size={16} /> Export CSV
+              <Download size={16} /> Export CSV <ComingSoonBadge />
             </Button>
           </div>
         ))}

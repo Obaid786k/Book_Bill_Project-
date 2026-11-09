@@ -1,17 +1,22 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { PageHeader } from '../../components/common/PageHeader';
 import { settingsService } from '../../services/settingsService';
 import { Card } from '../../components/common/Card';
 import { Skeleton } from '../../components/feedback/Skeleton';
+import { useToast } from '../../components/feedback/Toast';
+import { STATES } from '../../utils/constants';
 
 export const BusinessProfile = () => {
   const [profile, setProfile] = useState(null);
   const [saveStatus, setSaveStatus] = useState('');
   const saveTimerRef = useRef(null);
+  const { toast } = useToast();
 
   // Load profile on mount
   useEffect(() => {
-    settingsService.getBusinessProfile().then(setProfile);
-  }, []);
+    settingsService.getBusinessProfile().then(setProfile)
+      .catch(() => toast.error('Could not load settings. Please refresh the page.'));
+  }, [toast]);
 
   // Debounced Auto-save — cancels any previous pending save so rapid edits
   // can't queue overlapping requests whose responses might arrive out of
@@ -44,13 +49,8 @@ export const BusinessProfile = () => {
   };
 
   if (!profile) return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between mb-8">
-        <div className="space-y-2">
-          <Skeleton className="h-7 w-44" />
-          <Skeleton className="h-4 w-64" />
-        </div>
-      </div>
+    <div className="max-w-5xl mx-auto space-y-6">
+      <PageHeader />
       <Card className="p-6 space-y-6">
         <Skeleton className="h-4 w-32 mb-6" />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -66,18 +66,10 @@ export const BusinessProfile = () => {
   );
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-2xl font-display font-bold text-ink">Business Profile</h1>
-          <p className="text-sm text-ink2 mt-1">Manage your shop details and billing preferences.</p>
-        </div>
-        {saveStatus && (
-          <span className="text-xs font-bold text-ink3 bg-row-alt px-3 py-1 rounded-full animate-fade-in">
+    <div className="max-w-5xl mx-auto">
+      <PageHeader actions={saveStatus && (<span className="text-xs font-bold text-ink3 bg-row-alt px-3 py-1 rounded-full animate-fade-in">
             {saveStatus}
-          </span>
-        )}
-      </div>
+          </span>)} />
 
       <div className="space-y-6">
         {/* Basic Info */}
@@ -116,12 +108,20 @@ export const BusinessProfile = () => {
             </div>
             <div>
               <label className="block text-[13px] font-bold text-navy mb-1.5">State</label>
-              <input 
+              <select
                 name="shopState"
-                value={profile.shopState}
+                value={profile.shopState || ''}
                 onChange={handleChange}
                 className="w-full border border-bb rounded p-2.5 text-sm outline-none focus:border-navy transition-colors bg-white"
-              />
+              >
+                <option value="">Select State</option>
+                {/* Keep a previously typed (non-standard) value visible until changed */}
+                {profile.shopState && !STATES.some(s => s.n === profile.shopState) && (
+                  <option value={profile.shopState}>{profile.shopState}</option>
+                )}
+                {STATES.map(s => <option key={s.c} value={s.n}>{s.n}</option>)}
+              </select>
+              <p className="text-xs text-ink2 mt-1.5">Used to decide CGST + SGST vs IGST on invoices.</p>
             </div>
             <div>
               <label className="block text-[13px] font-bold text-navy mb-1.5">Contact Phone</label>

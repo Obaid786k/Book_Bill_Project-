@@ -1,8 +1,16 @@
 import React from 'react';
 import { STATES } from '../../../utils/constants';
-import { Calendar } from 'lucide-react';
+import { MapPin, Phone, Mail, Receipt, Map } from 'lucide-react';
+import { DateField } from '../../../components/common/DateField';
+import { AutoTextarea } from '../../../components/common/AutoTextarea';
+import { cleanGstin, isValidGstin } from '../../../utils/gstin';
+import { Link } from 'react-router-dom';
 
-export const InvoiceHeader = ({ shop, meta, settings, onShopChange, onMetaChange }) => {
+// showDueDate: only unpaid (Pending) bills have a due date.
+export const InvoiceHeader = ({ shop, meta, settings, isSaved, showDueDate, onShopChange, onMetaChange }) => {
+  const shopGstinBad = shop.shopGstin && !isValidGstin(shop.shopGstin);
+  // Composition dealers issue a "Bill of Supply" and must still show their GSTIN.
+  const isComposition = !settings.gstOn && settings.composition;
   return (
     <div className="inv-hd">
       <div className="inv-hd-l">
@@ -20,15 +28,15 @@ export const InvoiceHeader = ({ shop, meta, settings, onShopChange, onMetaChange
         />
         <div className="co-meta">
           <div className="co-row">
-            <span className="ci">📍</span>
-            <textarea 
+            <MapPin size={12} className="ci" aria-hidden="true" />
+            <AutoTextarea 
               value={shop.shopAddress} 
               onChange={(e) => onShopChange('shopAddress', e.target.value)} 
               placeholder="Address"
             />
           </div>
           <div className="co-row">
-            <span className="ci">📞</span>
+            <Phone size={12} className="ci" aria-hidden="true" />
             <input 
               value={shop.shopPhone} 
               onChange={(e) => onShopChange('shopPhone', e.target.value)} 
@@ -36,25 +44,29 @@ export const InvoiceHeader = ({ shop, meta, settings, onShopChange, onMetaChange
             />
           </div>
           <div className="co-row">
-            <span className="ci">✉</span>
+            <Mail size={12} className="ci" aria-hidden="true" />
             <input 
               value={shop.shopEmail} 
               onChange={(e) => onShopChange('shopEmail', e.target.value)} 
               placeholder="Email" 
             />
           </div>
-          {settings.gstOn && (
-            <div className="co-row gc">
-              <span className="ci">🧾</span>
+          {(settings.gstOn || isComposition) && (
+            <div className={settings.gstOn ? "co-row gc" : "co-row"}>
+              <Receipt size={12} className="ci" aria-hidden="true" />
               <input 
                 value={shop.shopGstin} 
-                onChange={(e) => onShopChange('shopGstin', e.target.value)} 
+                onChange={(e) => onShopChange('shopGstin', cleanGstin(e.target.value))} 
                 placeholder="GSTIN (15 digits)" 
+                maxLength={15}
+                aria-invalid={!!shopGstinBad}
+                style={shopGstinBad ? { color: 'var(--red)' } : undefined}
               />
+              {shopGstinBad && <span className="no-print" style={{ fontSize: '10px', color: 'var(--red)', whiteSpace: 'nowrap' }}>Check GSTIN</span>}
             </div>
           )}
           <div className="co-row">
-            <span className="ci">🗺</span>
+            <Map size={12} className="ci" aria-hidden="true" />
             <select 
               value={shop.shopState} 
               onChange={(e) => onShopChange('shopState', e.target.value)}
@@ -65,10 +77,12 @@ export const InvoiceHeader = ({ shop, meta, settings, onShopChange, onMetaChange
         </div>
       </div>
       <div className="inv-hd-r">
-        <div className="doc-lbl">{settings.gstOn ? "TAX INVOICE" : "CASH MEMO"}</div>
+        <div className="doc-lbl">{settings.gstOn ? "TAX INVOICE" : isComposition ? "BILL OF SUPPLY" : "CASH MEMO"}</div>
         <div className="doc-sub">
-          {!settings.gstOn 
-            ? "Non-GST Bill" 
+          {isComposition
+            ? "Composition taxable person, not eligible to collect tax on supplies"
+            : !settings.gstOn
+            ? "Non-GST Bill"
             : settings.tt === "intra" 
               ? "GST Registered · Intra-State" 
               : "GST Registered · Inter-State"
@@ -79,42 +93,33 @@ export const InvoiceHeader = ({ shop, meta, settings, onShopChange, onMetaChange
             <tr>
               <td className="ml">Invoice No.</td>
               <td className="mv">
-                <input 
-                  value={meta.invoiceNo} 
-                  onChange={(e) => onMetaChange('invoiceNo', e.target.value)} 
-                  style={{ width: '115px' }} 
+                {/* Set by the server when the bill is saved — not editable here. */}
+                <input
+                  value={meta.invoiceNo}
+                  placeholder="Auto"
+                  readOnly
+                  title="Set automatically. Change numbering in Settings → Invoice Preferences."
+                  style={{ width: '115px', cursor: 'default' }}
                 />
+                {!isSaved && (
+                  <div className="no-print" style={{ fontSize: '10px', color: 'var(--ink3)' }}>
+                    Next (auto) · <Link to="/settings/invoice" style={{ textDecoration: 'underline' }}>change</Link>
+                  </div>
+                )}
               </td>
             </tr>
             <tr>
               <td className="ml">Date</td>
               <td className="mv">
-                <div className="flex items-center gap-1.5 cursor-pointer relative group" style={{ width: '130px' }}>
-                  <input 
-                    type="date"
-                    value={meta.invoiceDate} 
-                    onChange={(e) => onMetaChange('invoiceDate', e.target.value)} 
-                    onClick={(e) => e.target.showPicker && e.target.showPicker()}
-                    style={{ background: 'transparent', border: 'none', outline: 'none', cursor: 'pointer', width: '100%', fontSize: '13px' }} 
-                  />
-                  <Calendar size={14} className="text-navy/60 group-hover:text-navy transition-colors shrink-0 no-print" />
-                </div>
+                {/* Past or future allowed for now (common practice); can be limited later per GST rules. */}
+                <DateField label="invoice date" value={meta.invoiceDate} onChange={(v) => onMetaChange('invoiceDate', v)} />
               </td>
             </tr>
-            {settings.gstOn && (
-            <tr className="gc">
+            {showDueDate && (
+            <tr>
               <td className="ml">Due Date</td>
               <td className="mv">
-                <div className="flex items-center gap-1.5 cursor-pointer relative group" style={{ width: '130px' }}>
-                  <input 
-                    type="date"
-                    value={meta.dueDate} 
-                    onChange={(e) => onMetaChange('dueDate', e.target.value)} 
-                    onClick={(e) => e.target.showPicker && e.target.showPicker()}
-                    style={{ background: 'transparent', border: 'none', outline: 'none', cursor: 'pointer', width: '100%', fontSize: '13px' }} 
-                  />
-                  <Calendar size={14} className="text-navy/60 group-hover:text-navy transition-colors shrink-0 no-print" />
-                </div>
+                <DateField label="due date" value={meta.dueDate} min={meta.invoiceDate} onChange={(v) => onMetaChange('dueDate', v)} />
               </td>
             </tr>
             )}

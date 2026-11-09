@@ -8,6 +8,7 @@ export class AppError extends Error {
     this.name = 'AppError';
     this.surface = friendly.surface || 'toast';
     this.field = friendly.field || null;
+    this.reason = friendly.reason || null; // e.g. 'BB_BILL_NOT_FOUND'
     this.code = originalError?.code || originalError?.error_code || 'APP_ERROR';
     this.context = context;
   }

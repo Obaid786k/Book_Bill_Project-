@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Card } from '../../components/common/Card';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { Loader2, Info } from 'lucide-react';
+import { PageHeader } from '../../components/common/PageHeader';
 import { StatCard } from '../../components/common/StatCard';
+import { ChartCard, ChartTooltip, DonutChart } from '../../components/charts/ChartParts';
+import { CHART, axisProps, gridProps, lineCursor, inrCompact, inr } from '../../components/charts/chartTheme';
 import { insightsService } from '../../services/insightsService';
-import { Loader2, TrendingDown } from 'lucide-react';
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid } from 'recharts';
-
-const COLORS = ['#0A2540', '#0077C8', '#40E0D0'];
 
 export const GST = () => {
   const [data, setData] = useState(null);
@@ -14,59 +14,49 @@ export const GST = () => {
     insightsService.getGSTAnalytics().then(setData);
   }, []);
 
-  if (!data) return <div className="flex h-64 items-center justify-center"><Loader2 className="animate-spin text-navy" /></div>;
+  if (!data) return <div><PageHeader /><div className="flex h-64 items-center justify-center"><Loader2 className="animate-spin text-navy" /></div></div>;
+
+  const part = (name) => data.breakdown.find((d) => d.name === name)?.value || 0;
 
   return (
-    <div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-display font-bold text-ink">GST Analytics</h1>
-        <p className="text-sm text-ink2 mt-1">Track your tax liability and collection breakdown.</p>
+    <div className="flex flex-col gap-4">
+      <PageHeader className="!mb-1" />
+
+      <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
+        <StatCard title="Total tax collected" value={inr(data.totalTax)} subtitle="This financial year" />
+        <StatCard title="CGST" value={inr(part('CGST'))} subtitle="Central tax" />
+        <StatCard title="SGST" value={inr(part('SGST'))} subtitle="State tax" />
+        <StatCard title="IGST" value={inr(part('IGST'))} subtitle="Inter-state tax" />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <StatCard title="Total Tax Collected" value={`₹${data.totalTax.toLocaleString()}`} subtitle="Year to date" />
-        <StatCard title="CGST Total" value={`₹${data.breakdown.find(d => d.name === 'CGST')?.value.toLocaleString()}`} />
-        <StatCard title="SGST Total" value={`₹${data.breakdown.find(d => d.name === 'SGST')?.value.toLocaleString()}`} />
-        <StatCard title="IGST Total" value={`₹${data.breakdown.find(d => d.name === 'IGST')?.value.toLocaleString()}`} />
-      </div>
+      <div className="grid lg:grid-cols-2 gap-4">
+        <ChartCard
+          title="Tax breakdown"
+          sub="This financial year"
+          insight={data.totalTax > 0
+            ? `IGST (other-state sales) is ${Math.round((part('IGST') / data.totalTax) * 100)}% of your GST this year.`
+            : 'Your GST split appears here after your first GST bill.'}
+          insightIcon={Info}
+          insightTone="navy"
+        >
+          {data.totalTax > 0
+            ? <DonutChart data={data.breakdown} centerLabel="Total GST" />
+            : <div className="h-[220px] flex items-center justify-center text-[13px] text-ink2">No GST collected yet this year</div>}
+        </ChartCard>
 
-      <div className="grid md:grid-cols-2 gap-8">
-        <Card className="p-6">
-          <h3 className="text-lg font-bold text-navy mb-6">Tax Breakdown</h3>
-          <div className="h-64 w-full flex items-center justify-center">
+        <ChartCard title="Tax collection trend" sub="Monthly, this financial year">
+          <div style={{ height: 220 }}>
             <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie data={data.breakdown} innerRadius={60} outerRadius={80} paddingAngle={2} dataKey="value">
-                  {data.breakdown.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip formatter={(val) => `₹${val.toLocaleString()}`} contentStyle={{ borderRadius: '8px', fontSize: '13px' }} />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="mt-6 pt-4 border-t border-bb2 flex items-start gap-3 text-red">
-            <TrendingDown size={18} className="mt-0.5 shrink-0" />
-            <p className="text-[13.5px] text-ink font-medium leading-relaxed">
-              <strong>IGST</strong> collections have dropped by 15% this quarter, indicating fewer inter-state sales. Consider running targeted promotions in neighboring states.
-            </p>
-          </div>
-        </Card>
-
-        <Card className="p-6">
-          <h3 className="text-lg font-bold text-navy mb-6">Tax Collection Trend</h3>
-          <div className="h-64 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={data.monthlyTax} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#6B7280' }} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#6B7280' }} tickFormatter={(value) => `₹${value}`} />
-                <Tooltip cursor={{ fill: '#F3F4F6' }} contentStyle={{ borderRadius: '8px', fontSize: '13px' }} formatter={(val) => `₹${val}`} />
-                <Line type="monotone" dataKey="tax" name="Total GST" stroke="#0077C8" strokeWidth={3} dot={{ r: 4, fill: '#0077C8' }} />
+              <LineChart data={data.monthlyTax} margin={{ top: 4, right: 8, left: -8, bottom: 0 }}>
+                <CartesianGrid {...gridProps} />
+                <XAxis dataKey="name" {...axisProps} />
+                <YAxis {...axisProps} width={48} tickFormatter={inrCompact} />
+                <Tooltip content={<ChartTooltip />} cursor={lineCursor} />
+                <Line type="monotone" dataKey="tax" name="Total GST" stroke={CHART.current} strokeWidth={2.5} dot={{ r: 3, fill: CHART.current }} activeDot={{ r: 5 }} />
               </LineChart>
             </ResponsiveContainer>
           </div>
-        </Card>
+        </ChartCard>
       </div>
     </div>
   );

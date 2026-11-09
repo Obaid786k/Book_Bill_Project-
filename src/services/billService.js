@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabaseClient';
 import { useAuthStore } from '../store/authStore';
+import { cached, mutating } from '../lib/dataCache';
 import { handleSupabaseError } from '../utils/handleSupabaseError';
 
 const getBusinessId = () => useAuthStore.getState().user?.businessId;
@@ -11,12 +12,22 @@ const toBillShape = (row) => ({
   status: row.status,
   createdAt: row.created_at,
   updatedAt: row.updated_at,
+  shop: row.shop,
   customer: row.customer,
   payment: row.payment,
   settings: row.settings,
   items: row.items,
   terms: row.terms,
   notes: row.notes,
+  // Server-computed totals (finalize_bill / update_bill_details) — the source of truth.
+  totals: {
+    subtotal: Number(row.subtotal) || 0,
+    cgst: Number(row.cgst_total) || 0,
+    sgst: Number(row.sgst_total) || 0,
+    igst: Number(row.igst_total) || 0,
+    roundOff: Number(row.round_off) || 0,
+    grand: Number(row.grand_total) || 0,
+  },
   meta: {
     invoiceNo: row.invoice_no,
     invoiceDate: row.invoice_date,
@@ -26,10 +37,13 @@ const toBillShape = (row) => ({
   },
 });
 
+// The row's own id/saved_at must come AFTER the payload spread — older
+// drafts stored an `id` key inside the payload, which would otherwise
+// overwrite the real draft id (making delete/restore target the wrong row).
 const toDraftShape = (row) => ({
+  ...row.payload,
   id: row.id,
   savedAt: row.saved_at,
-  ...row.payload,
 });
 
 const toTemplateShape = (row) => ({
@@ -43,11 +57,10 @@ const toTemplateShape = (row) => ({
 
 export const billService = {
   // ----- BILLS -----
-  // Creates a new bill (always the case today — no caller currently passes
-  // bill.id) via the finalize_bill RPC, which validates line items,
-  // recomputes GST/totals server-side, and generates the invoice number
-  // atomically. If bill.id is ever passed in future, routes to
-  // update_bill_details instead (full edit — invoice_no is frozen either way).
+  // New bill (no bill.id) → finalize_bill RPC: validates line items,
+  // recomputes GST/totals server-side and issues the invoice number atomically.
+  // Existing bill (bill.id — editing from Bill History, or re-printing) →
+  // update_bill_details RPC: same validation/recompute, invoice_no frozen.
   saveBill: async (bill) => {
     const businessId = getBusinessId();
     if (!businessId) throw new Error('No business found for current user');
@@ -102,36 +115,35 @@ export const billService = {
     return toBillShape(data);
   },
 
-  // Full content edit (items/customer/totals etc. — invoice_no is frozen
-  // regardless). Not wired to any page yet — the frontend has no Edit UI
-  // on Bill History today, only the backend capability exists so far.
-  updateBillDetails: async (id, bill) => {
-    const { data, error } = await supabase.rpc('update_bill_details', {
-      p_bill_id: id,
-      p_bill: bill,
-    });
-    if (error) throw handleSupabaseError(error, { table: 'bills', action: 'updateDetails' });
-    return toBillShape(data);
-  },
-
-  // Not wired to any page yet — same as above, backend-ready only.
-  deleteBill: async (id) => {
-    const { error } = await supabase.from('bills').delete().eq('id', id);
-    if (error) throw handleSupabaseError(error, { table: 'bills', action: 'delete' });
-    return true;
-  },
+  // Issued invoices are cancelled, never deleted (GST rule; DELETE revoked in 0007).
+  // The bill and its number stay; it prints with a CANCELLED watermark.
+  cancelBill: async (id) => billService.updateBillStatus(id, 'Cancelled'),
 
   // ----- DRAFTS -----
   // The 8-draft cap is enforced server-side (a trigger deletes the oldest
   // beyond 8 automatically) — no client-side slicing needed anymore.
-  saveDraft: async (draft) => {
+  // One bill = one draft: pass the draft's id to update it in place (it moves to newest).
+  // If that draft no longer exists (deleted / pushed out by the cap) a new one is created.
+  // Returns { id, drafts }.
+  saveDraft: async (draft, draftId = null) => {
     const businessId = getBusinessId();
     if (!businessId) throw new Error('No business found for current user');
-    const { error } = await supabase
+    if (draftId) {
+      const { data, error } = await supabase
+        .from('drafts')
+        .update({ payload: draft, saved_at: new Date().toISOString() })
+        .eq('id', draftId)
+        .select('id');
+      if (error) throw handleSupabaseError(error, { table: 'drafts', action: 'update' });
+      if (data?.length) return { id: draftId, drafts: await billService.getDrafts() };
+    }
+    const { data, error } = await supabase
       .from('drafts')
-      .insert({ business_id: businessId, payload: draft });
+      .insert({ business_id: businessId, payload: draft })
+      .select('id')
+      .single();
     if (error) throw handleSupabaseError(error, { table: 'drafts', action: 'insert' });
-    return billService.getDrafts();
+    return { id: data.id, drafts: await billService.getDrafts() };
   },
 
   getDrafts: async () => {
@@ -186,3 +198,15 @@ export const billService = {
     return billService.getTemplates();
   }
 };
+
+// Speed: remember reads for a few minutes; any save/delete clears the memory (src/lib/dataCache.js).
+billService.getBill = cached('bills.one', billService.getBill);
+billService.listBills = cached('bills.list', billService.listBills);
+billService.getDrafts = cached('drafts.list', billService.getDrafts);
+billService.getTemplates = cached('templates.list', billService.getTemplates);
+billService.saveBill = mutating(billService.saveBill);
+billService.updateBillStatus = mutating(billService.updateBillStatus);
+billService.saveDraft = mutating(billService.saveDraft);
+billService.deleteDraft = mutating(billService.deleteDraft);
+billService.saveTemplate = mutating(billService.saveTemplate);
+billService.deleteTemplate = mutating(billService.deleteTemplate);

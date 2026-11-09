@@ -3,3 +3,14 @@
 @tailwind utilities;
 
 /* Custom globals will go here in future phases */
+
+/* Charts: no blue focus box when a chart is clicked (keyboard focus still works via the card) */
+.recharts-wrapper:focus,
+.recharts-wrapper:focus-visible,
+.recharts-surface:focus,
+.recharts-wrapper *:focus {
+  outline: none;
+}
+
+/* Invoice dates: type directly; the app calendar opens from our own icon (DateField). */
+.bb-date::-webkit-calendar-picker-indicator { display: none; }

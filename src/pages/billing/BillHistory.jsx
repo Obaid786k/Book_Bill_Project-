@@ -1,29 +1,55 @@
 import React, { useEffect, useState } from 'react';
+import { PageHeader } from '../../components/common/PageHeader';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
+import { ALERT_KEYS } from '../../hooks/useAlerts';
 import { billService } from '../../services/billService';
-import { formatCurrency, recalc } from '../../utils/gstCalc';
+import { formatCurrency } from '../../utils/gstCalc';
+import { localDateStr } from '../../utils/date';
 import { DataTable } from '../../components/common/DataTable';
 import { Button } from '../../components/common/Button';
 import { StatCard } from '../../components/common/StatCard';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import { ComingSoonBadge } from '../../components/common/ComingSoonBadge';
 import { ComingSoonPanel } from '../../components/common/ComingSoonPanel';
-import { DeleteConfirmDialog } from '../../components/common/DeleteConfirmDialog';
+import { ConfirmDialog } from '../../components/common/ConfirmDialog';
 import { Dialog } from '../../components/common/Dialog';
 import { useToast } from '../../components/feedback/Toast';
-import { Clock, FileText, CheckCircle, AlertCircle, Edit2, Trash2 } from 'lucide-react';
+import { Clock, FileText, CheckCircle, AlertCircle, Edit2, XCircle } from 'lucide-react';
+
+// Overdue is not stored: a Pending bill whose due date has passed.
+const displayStatus = (bill) => (
+  bill.status === 'Pending' && bill.meta.dueDate && bill.meta.dueDate < localDateStr() ? 'Overdue' : bill.status
+);
 
 export const BillHistory = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const refreshAlerts = () => queryClient.invalidateQueries({ queryKey: ALERT_KEYS.bills });
   const [bills, setBills] = useState([]);
   const [selectedBill, setSelectedBill] = useState(null);
   const [activeTab, setActiveTab] = useState('details');
-  const [deleteId, setDeleteId] = useState(null);
+  const [cancelId, setCancelId] = useState(null);
 
   useEffect(() => {
-    billService.listBills().then(setBills);
-  }, []);
+    billService.listBills().then(setBills)
+      .catch(() => toast.error('Could not load bills. Please refresh the page.'));
+  }, [toast]);
+
+  const handleToggleStatus = async (row) => {
+    const nextStatus = row.status === 'Paid' ? 'Pending' : 'Paid';
+    const previous = bills;
+    setBills(bills.map(b => b.id === row.id ? { ...b, status: nextStatus } : b)); // optimistic
+    try {
+      await billService.updateBillStatus(row.id, nextStatus);
+      refreshAlerts();
+      toast.success(`Invoice ${row.meta.invoiceNo} marked as ${nextStatus}.`);
+    } catch {
+      setBills(previous); // revert on failure
+      toast.error('Failed to update status. Please try again.');
+    }
+  };
 
   const columns = [
     { header: "Invoice No", accessor: "meta.invoiceNo", sortable: true },
@@ -31,55 +57,61 @@ export const BillHistory = () => {
     { header: "Customer", accessor: "customer.custName", sortable: true },
     { 
       header: "Amount", 
-      accessor: (row) => formatCurrency(recalc(row.items, row.settings?.gstOn, row.settings?.tt).totals.grand),
+      accessor: (row) => formatCurrency(row.totals.grand),
       sortable: false
     },
-    { 
-      header: "Status", 
-      accessor: (row) => <StatusBadge status={row.status} />,
+    {
+      header: "Status",
+      accessor: (row) => <StatusBadge status={displayStatus(row)} />,
       sortable: true
     }
   ];
 
-  const actions = (row) => (
-    <div className="flex gap-2 justify-end">
-      <Button 
-        variant="ghost" size="sm"
-        onClick={() => { setSelectedBill(row); setActiveTab('details'); }}
-      >
-        View
-      </Button>
-      <Button variant="ghost" size="sm" onClick={() => navigate('/billing/new', { state: { loadBillId: row.id } })}>
-        <Edit2 size={14} className="mr-1" /> Edit
-      </Button>
-      <Button variant="ghost" size="sm" className="text-red hover:text-red hover:bg-red-bg" onClick={() => setDeleteId(row.id)}>
-        <Trash2 size={14} />
-      </Button>
-    </div>
-  );
+  const actions = (row) => {
+    const isCancelled = row.status === 'Cancelled';
+    return (
+      <div className="flex gap-2 justify-end">
+        <Button
+          variant="ghost" size="sm"
+          onClick={() => { setSelectedBill(row); setActiveTab('details'); }}
+        >
+          View
+        </Button>
+        {!isCancelled && (
+          <Button variant="ghost" size="sm" onClick={() => handleToggleStatus(row)}>
+            <CheckCircle size={14} className="mr-1" /> {row.status === 'Paid' ? 'Mark Pending' : 'Mark Paid'}
+          </Button>
+        )}
+        <Button variant="ghost" size="sm" onClick={() => navigate('/billing/new', { state: { loadBillId: row.id } })}>
+          <Edit2 size={14} className="mr-1" /> {isCancelled ? 'Open' : 'Edit'}
+        </Button>
+        {!isCancelled && (
+          <Button variant="ghost" size="sm" className="text-red hover:text-red hover:bg-red-bg" title="Cancel invoice" onClick={() => setCancelId(row.id)}>
+            <XCircle size={14} />
+          </Button>
+        )}
+      </div>
+    );
+  };
 
-  const handleDelete = async () => {
-    if (!deleteId) return;
+  const handleCancel = async () => {
+    if (!cancelId) return;
     const previous = bills;
-    setBills(bills.filter(b => b.id !== deleteId)); // optimistic
-    setDeleteId(null);
+    setBills(bills.map(b => b.id === cancelId ? { ...b, status: 'Cancelled' } : b)); // optimistic
+    setCancelId(null);
     try {
-      await billService.deleteBill(deleteId);
-      toast('✅ Bill deleted successfully.');
-    } catch {
+      await billService.cancelBill(cancelId);
+      refreshAlerts();
+      toast.success('Invoice cancelled.');
+    } catch (err) {
       setBills(previous); // revert on failure
-      toast('❌ Failed to delete bill. Please try again.');
+      toast.error(`${err.message || 'Failed to cancel invoice. Please try again.'}`);
     }
   };
 
   return (
     <div className="p-6">
-      <div className="flex justify-between items-center mb-6 no-print">
-        <div>
-          <h1 className="text-2xl font-display font-bold text-ink">Bill History</h1>
-          <p className="text-sm text-ink2 mt-1">View and manage all finalized bills.</p>
-        </div>
-      </div>
+      <PageHeader />
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <StatCard 
@@ -93,8 +125,8 @@ export const BillHistory = () => {
           icon={CheckCircle} 
         />
         <StatCard 
-          title="Unpaid/Pending" 
-          value={bills.filter(b => b.status === 'Unpaid' || b.status === 'Pending').length} 
+          title="Pending / Overdue"
+          value={bills.filter(b => b.status === 'Pending').length}
           icon={AlertCircle} 
         />
       </div>
@@ -137,7 +169,7 @@ export const BillHistory = () => {
                   <h3 className="text-sm font-bold text-navy mb-2">Customer</h3>
                   <p className="text-[13px] text-ink mb-6">{selectedBill.customer.custName}</p>
                   <h3 className="text-sm font-bold text-navy mb-2">Summary</h3>
-                  <p className="text-[13px] text-ink">Total Amount: {formatCurrency(recalc(selectedBill.items, selectedBill.settings?.gstOn, selectedBill.settings?.tt).totals.grand)}</p>
+                  <p className="text-[13px] text-ink">Total Amount: {formatCurrency(selectedBill.totals.grand)}</p>
                 </div>
               )}
               {activeTab === 'timeline' && (
@@ -152,12 +184,13 @@ export const BillHistory = () => {
         )}
       </Dialog>
 
-      <DeleteConfirmDialog
-        isOpen={!!deleteId}
-        onClose={() => setDeleteId(null)}
-        onConfirm={handleDelete}
-        title="Delete Invoice"
-        itemName="this invoice"
+      <ConfirmDialog
+        isOpen={!!cancelId}
+        onClose={() => setCancelId(null)}
+        onConfirm={handleCancel}
+        title="Cancel Invoice"
+        message="Cancel this invoice? It stays in your history with a CANCELLED mark, its number is never reused, and it can't be edited again."
+        confirmText="Yes, Cancel Invoice"
       />
     </div>
   );

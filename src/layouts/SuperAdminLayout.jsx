@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Suspense } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { Button } from '../components/common/Button';
@@ -144,7 +144,7 @@ export const SuperAdminLayout = () => {
         </div>
 
         <div className="p-6 md:p-10 max-w-6xl mx-auto w-full">
-          <Outlet />
+          <Suspense fallback={<div className="min-h-[60vh]" />}><Outlet /></Suspense>
         </div>
       </div>
     </div>

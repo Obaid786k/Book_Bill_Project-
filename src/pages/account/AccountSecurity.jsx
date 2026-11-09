@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { PageHeader } from '../../components/common/PageHeader';
 import { accountService } from '../../services/accountService';
 import { Card } from '../../components/common/Card';
 import { Button } from '../../components/common/Button';
-import { MonitorSmartphone, MapPin, Key, ShieldAlert } from 'lucide-react';
+import { MonitorSmartphone, Key, ShieldAlert } from 'lucide-react';
 import { settingsService } from '../../services/settingsService';
 import { useToast } from '../../components/feedback/Toast';
 import { Dialog } from '../../components/common/Dialog';
@@ -33,6 +34,11 @@ export const AccountSecurity = () => {
     e.preventDefault();
     setFieldErrors({});
 
+    if (!passwords.oldPassword) {
+      setFieldErrors({ oldPassword: 'Please enter your current password.' });
+      return;
+    }
+
     if (!passwords.newPassword) {
       setFieldErrors({ newPassword: 'Please enter a new password.' });
       return;
@@ -55,16 +61,25 @@ export const AccountSecurity = () => {
       return;
     }
 
+    if (passwords.newPassword === passwords.oldPassword) {
+      setFieldErrors({ newPassword: 'New password must be different from your current password.' });
+      return;
+    }
+
     setIsSubmitting(true);
-    
+
     try {
       await settingsService.changePassword(passwords.oldPassword, passwords.newPassword);
-      toast('Password changed successfully.');
+      toast.success('Password changed.');
       setPasswords({ oldPassword: '', newPassword: '', confirmPassword: '' });
       setFieldErrors({});
       setIsPasswordModalOpen(false);
     } catch (err) {
-      toast(err.message || 'Failed to change password.');
+      if (err.field) {
+        setFieldErrors({ [err.field]: err.message });
+      } else {
+        toast.error(`${err.message || 'Failed to change password.'}`);
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -75,11 +90,8 @@ export const AccountSecurity = () => {
   }, []);
 
   if (!data) return (
-    <div>
-      <div className="mb-8 space-y-2">
-        <Skeleton className="h-7 w-44" />
-        <Skeleton className="h-4 w-64" />
-      </div>
+    <div className="max-w-5xl mx-auto">
+      <PageHeader />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card className="p-6"><Skeleton className="h-4 w-32 mb-4" /><Skeleton className="h-20" /></Card>
         <div className="space-y-6">
@@ -91,11 +103,8 @@ export const AccountSecurity = () => {
   );
 
   return (
-    <div>
-      <div className="mb-8">
-        <h1 className="text-2xl font-display font-bold text-ink">Account Security</h1>
-        <p className="text-sm text-ink2 mt-1">Review active sessions and access settings.</p>
-      </div>
+    <div className="max-w-5xl mx-auto">
+      <PageHeader />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card className="p-6">
@@ -113,19 +122,14 @@ export const AccountSecurity = () => {
                 <p className="text-xs text-green font-medium">Active Now</p>
               </div>
               
-              <div className="flex items-center gap-2 text-sm text-ink2">
-                <MapPin size={14} />
-                <span>{data.currentSession.location}</span>
-              </div>
-              
-              <div className="pt-3 border-t border-bb2 flex justify-between items-center">
+              <div className="pt-3 border-t border-bb2 flex justify-between items-center gap-4">
                 <div>
-                  <p className="text-[11px] font-bold text-ink2 uppercase tracking-wider mb-1">IP Address</p>
-                  <p className="text-xs font-mono text-ink">{data.currentSession.ip}</p>
-                </div>
-                <div>
-                  <p className="text-[11px] font-bold text-ink2 uppercase tracking-wider mb-1">Started</p>
+                  <p className="text-[11px] font-bold text-ink2 uppercase tracking-wider mb-1">Signed in</p>
                   <p className="text-xs text-ink">{data.currentSession.started}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-[11px] font-bold text-ink2 uppercase tracking-wider mb-1">Sign-in method</p>
+                  <p className="text-xs text-ink">{data.currentSession.method}</p>
                 </div>
               </div>
             </div>
@@ -141,7 +145,7 @@ export const AccountSecurity = () => {
               <div>
                 <h3 className="text-sm font-bold text-navy mb-1">Password Management</h3>
                 <p className="text-xs text-ink2 mb-4">
-                  Last changed {data.lastPasswordChange}. We recommend updating your password every 90 days.
+                  Use a strong password you don't use anywhere else. Changing it every few months keeps your account safer.
                 </p>
                 <Button 
                   variant="outline" 

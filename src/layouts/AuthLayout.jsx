@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Suspense } from 'react';
 import { Outlet, Link } from 'react-router-dom';
 import { Card } from '../components/common/Card';
 
@@ -17,7 +17,7 @@ const AuthLayout = ({ children }) => {
 
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <Card className="py-8 px-4 sm:px-10 shadow-lg border-bb2 bg-white">
-          {children || <Outlet />}
+          {children || <Suspense fallback={<div className="min-h-[240px]" />}><Outlet /></Suspense>}
         </Card>
         
         <div className="mt-8 text-center text-[12px] text-ink3">

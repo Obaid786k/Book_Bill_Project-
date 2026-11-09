@@ -4,6 +4,8 @@ import { Button } from '../../components/common/Button';
 import { Card } from '../../components/common/Card';
 import { ArrowRight, FileText, PieChart, Users, TrendingUp } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { CHART, axisProps, gridProps, barCursor, barRadius, inrCompact } from '../../components/charts/chartTheme';
+import { ChartTooltip } from '../../components/charts/ChartParts';
 import Dashboard from '../dashboard/Dashboard';
 import { useAuthStore } from '../../store/authStore';
 import GlobalLoading from '../../components/common/states/GlobalLoading';
@@ -163,15 +165,11 @@ const Home = () => {
             <div className="h-[300px] w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#6B7280' }} dy={10} />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#6B7280' }} tickFormatter={(value) => `₹${value / 1000}k`} />
-                  <Tooltip 
-                    cursor={{ fill: '#F3F4F6' }}
-                    contentStyle={{ borderRadius: '8px', border: '1px solid #E5E7EB', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', fontSize: '13px', fontWeight: '500', color: '#111827' }}
-                    formatter={(value) => [`₹${value.toLocaleString()}`, 'Revenue']}
-                  />
-                  <Bar dataKey="revenue" fill="#0A2540" radius={[4, 4, 0, 0]} maxBarSize={48} />
+                  <CartesianGrid {...gridProps} />
+                  <XAxis dataKey="name" {...axisProps} />
+                  <YAxis {...axisProps} width={48} tickFormatter={inrCompact} />
+                  <Tooltip content={<ChartTooltip />} cursor={barCursor} />
+                  <Bar dataKey="revenue" name="Revenue" fill={CHART.current} radius={barRadius} maxBarSize={48} />
                 </BarChart>
               </ResponsiveContainer>
             </div>

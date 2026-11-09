@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
+import { PageHeader } from '../../components/common/PageHeader';
 import { Search, Plus, Download, Upload, X, Package } from 'lucide-react';
 import { productService } from '../../services/productService';
 import { DataTable } from '../../components/common/DataTable';
@@ -9,18 +11,23 @@ import { ComingSoonBadge } from '../../components/common/ComingSoonBadge';
 import { ComingSoonPanel } from '../../components/common/ComingSoonPanel';
 import { formatCurrency } from '../../utils/gstCalc';
 import { ProductForm } from './ProductForm';
+import { useToast } from '../../components/feedback/Toast';
 
 export const ProductsList = () => {
+  const { toast } = useToast();
+  const location = useLocation();
   const [products, setProducts] = useState([]);
   const [search, setSearch] = useState('');
-  const [isFormOpen, setIsFormOpen] = useState(false);
+  // Dashboard "Add product" opens the form straight away.
+  const [isFormOpen, setIsFormOpen] = useState(() => !!location.state?.openNew);
   const [editingProduct, setEditingProduct] = useState(null);
   const [showPlaceholder, setShowPlaceholder] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
   const loadProducts = () => {
-    productService.getProducts().then(setProducts);
+    productService.getProducts().then(setProducts)
+      .catch(() => toast.error('Could not load products. Please refresh the page.'));
   };
 
   useEffect(() => {
@@ -38,6 +45,8 @@ export const ProductsList = () => {
       await productService.deleteProduct(deleteId);
       setDeleteId(null);
       loadProducts();
+    } catch {
+      toast.error('Failed to delete product. Please try again.');
     } finally {
       setIsDeleting(false);
     }
@@ -76,7 +85,7 @@ export const ProductsList = () => {
         Edit
       </button>
       <button 
-        className="text-rose hover:text-rose/80 text-sm font-semibold transition-colors"
+        className="text-red hover:text-red/80 text-sm font-semibold transition-colors"
         onClick={() => handleDelete(row.id)}
       >
         Delete
@@ -85,38 +94,35 @@ export const ProductsList = () => {
   );
 
   return (
-    <div className="p-6 h-full flex flex-col">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-        <div>
-          <h1 className="text-2xl font-display font-bold text-ink">Product Catalog</h1>
-          <p className="text-sm text-ink2 mt-1">Manage your inventory and services.</p>
-        </div>
-        <div className="flex flex-wrap gap-3 w-full sm:w-auto">
-          <div className="relative w-full sm:w-48 xl:w-64">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Search size={16} className="text-ink3" />
+    <div className="h-full flex flex-col">
+      <PageHeader
+        actions={
+          <>
+            <div className="relative w-full sm:w-48 xl:w-64">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Search size={16} className="text-ink3" />
+              </div>
+              <input
+                type="text"
+                placeholder="Search products..."
+                aria-label="Search products"
+                className="w-full pl-9 pr-3 py-2 border border-bb rounded-md text-sm outline-none focus:border-navy transition-colors bg-white"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
             </div>
-            <input
-              type="text"
-              placeholder="Search products..."
-              className="w-full pl-9 pr-3 py-2 border border-bb2 rounded-md text-sm outline-none focus:border-navy transition-colors bg-white"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
-          
-          <Button variant="outline" className="whitespace-nowrap flex items-center gap-2" onClick={() => setShowPlaceholder(true)}>
-            <Upload size={16} /> Import <ComingSoonBadge />
-          </Button>
-          <Button variant="outline" className="whitespace-nowrap flex items-center gap-2" onClick={() => setShowPlaceholder(true)}>
-            <Download size={16} /> Export <ComingSoonBadge />
-          </Button>
-
-          <Button variant="primary" className="whitespace-nowrap flex items-center gap-2" onClick={openNew}>
-            <Plus size={16} /> Add Product
-          </Button>
-        </div>
-      </div>
+            <Button variant="outline" onClick={() => setShowPlaceholder(true)}>
+              <Upload size={16} /> Import <ComingSoonBadge />
+            </Button>
+            <Button variant="outline" onClick={() => setShowPlaceholder(true)}>
+              <Download size={16} /> Export <ComingSoonBadge />
+            </Button>
+            <Button variant="primary" onClick={openNew}>
+              <Plus size={16} /> Add product
+            </Button>
+          </>
+        }
+      />
 
       <div className="flex-1 overflow-auto">
         <DataTable 

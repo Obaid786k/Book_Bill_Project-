@@ -18,9 +18,11 @@
   .co-row textarea {
     height: 38px;
   }
-  .meta-tbl input {
-    font-size: 13px; /* up from 12px */
+  .meta-tbl input, .bb-date-text {
+    font-size: 13px; /* up from 12px — invoice no. and dates match */
   }
+  /* same inner padding as the invoice-number box, so all three values share one right edge */
+  .bb-date-text, .meta-tbl input.bb-date { padding: 6px 4px; }
 
   /* Info Grid (Bill To / Payment) */
   .i-row input, .i-row select, .i-row textarea {

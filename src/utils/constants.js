@@ -20,3 +20,15 @@ export const getStCode = (name) => {
   const s = STATES.find(x => x.n === name);
   return s ? s.c : "";
 };
+
+// GST slabs from 22 Sep 2025 (0 / 5 / 18 / 40) + special rates (0.25 / 3).
+export const GST_RATES = ['0', '0.25', '3', '5', '18', '40'];
+
+// One unit list for products and invoice rows.
+export const UNITS = ['Pcs', 'Kg', 'Gram', 'Ltr', 'Box', 'Dozen', 'Meter', 'Pack', 'Nos', 'Set', 'Pair', 'Session', 'Project', 'Hour', 'Month', 'Service', 'Strip', 'Bag', 'Bottle'];
+
+// Adds an old value (e.g. 12% on an old bill) so editing never silently changes it.
+export const withCurrent = (list, value) => {
+  const v = value === undefined || value === null ? '' : String(value);
+  return v === '' || list.includes(v) ? list : [...list, v];
+};

@@ -24,7 +24,7 @@ export const ERROR_MAP = {
     surface: "inline",
   },
   weak_password: {
-    message: "Password must be at least 8 characters and include a number.",
+    message: "Password must be at least 6 characters with uppercase, lowercase, a number and a symbol.",
     field: "password",
     surface: "inline",
   },
@@ -168,6 +168,15 @@ export const ERROR_MAP = {
   },
 };
 
+const BB_ERRORS = {
+  BB_INVOICE_SEQ_MALFORMED: "Your invoice number format is not valid. Fix it in Settings → Invoice Preferences (e.g. INV-0001).",
+  BB_NO_ITEMS: "Add at least one item before saving.",
+  BB_ITEM_INVALID: "An item has an invalid value. Check name, quantity, rate, discount (0–100) and GST (0–100).",
+  BB_BILL_NOT_FOUND: "This invoice no longer exists.",
+  BB_BILL_CANCELLED: "This invoice is cancelled and can't be changed.",
+  BB_NOT_OWNER: "We couldn't find your business. Please log out and log in again.",
+};
+
 /**
  * Returns a user-friendly error object from any raw error.
  */
@@ -219,12 +228,18 @@ export function getFriendlyError(error) {
     const details = (error.details || '').toLowerCase() + ' ' + lowerMsg;
     if (details.includes('invoice_no') || details.includes('bills_business_invoice_no_unique')) {
       return {
-        message: "An invoice with this number already exists. Please use a different invoice number.",
+        message: "This invoice number is already used. Change 'Next Invoice Number' in Settings → Invoice Preferences.",
         field: "invoiceNo",
         surface: "inline",
       };
     }
     return ERROR_MAP['23505'];
+  }
+
+  // Errors raised by our own database functions (0007): "BB_<CODE>: details"
+  if (code === 'P0001') {
+    const reason = rawMessage.split(':')[0].trim();
+    if (BB_ERRORS[reason]) return { message: BB_ERRORS[reason], surface: 'toast', reason };
   }
 
   const mapped = ERROR_MAP[code];

@@ -1,16 +1,20 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { PageHeader } from '../../components/common/PageHeader';
 import { settingsService } from '../../services/settingsService';
 import { Card } from '../../components/common/Card';
 import { Skeleton } from '../../components/feedback/Skeleton';
+import { useToast } from '../../components/feedback/Toast';
 
 export const PaymentSettings = () => {
   const [profile, setProfile] = useState(null);
   const [saveStatus, setSaveStatus] = useState('');
   const saveTimerRef = useRef(null);
+  const { toast } = useToast();
 
   useEffect(() => {
-    settingsService.getPaymentSettings().then(setProfile);
-  }, []);
+    settingsService.getPaymentSettings().then(setProfile)
+      .catch(() => toast.error('Could not load settings. Please refresh the page.'));
+  }, [toast]);
 
   const debouncedSave = useCallback(
     (data) => {
@@ -40,13 +44,8 @@ export const PaymentSettings = () => {
   };
 
   if (!profile) return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between mb-8">
-        <div className="space-y-2">
-          <Skeleton className="h-7 w-44" />
-          <Skeleton className="h-4 w-72" />
-        </div>
-      </div>
+    <div className="max-w-5xl mx-auto space-y-6">
+      <PageHeader />
       <Card className="p-6"><Skeleton className="h-4 w-40 mb-6" /><Skeleton className="h-9 w-48" /></Card>
       <Card className="p-6">
         <Skeleton className="h-4 w-48 mb-6" />
@@ -59,18 +58,10 @@ export const PaymentSettings = () => {
   );
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-2xl font-display font-bold text-ink">Payment Settings</h1>
-          <p className="text-sm text-ink2 mt-1">Configure your bank accounts and payment collection preferences.</p>
-        </div>
-        {saveStatus && (
-          <span className="text-xs font-bold text-ink3 bg-row-alt px-3 py-1 rounded-full animate-fade-in">
+    <div className="max-w-5xl mx-auto">
+      <PageHeader actions={saveStatus && (<span className="text-xs font-bold text-ink3 bg-row-alt px-3 py-1 rounded-full animate-fade-in">
             {saveStatus}
-          </span>
-        )}
-      </div>
+          </span>)} />
 
       <div className="space-y-6">
         <Card className="p-6">

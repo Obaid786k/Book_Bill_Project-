@@ -1,16 +1,20 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { PageHeader } from '../../components/common/PageHeader';
 import { settingsService } from '../../services/settingsService';
 import { Card } from '../../components/common/Card';
 import { Skeleton } from '../../components/feedback/Skeleton';
+import { useToast } from '../../components/feedback/Toast';
 
 export const InvoicePreferences = () => {
   const [profile, setProfile] = useState(null);
   const [saveStatus, setSaveStatus] = useState('');
   const saveTimerRef = useRef(null);
+  const { toast } = useToast();
 
   useEffect(() => {
-    settingsService.getInvoicePreferences().then(setProfile);
-  }, []);
+    settingsService.getInvoicePreferences().then(setProfile)
+      .catch(() => toast.error('Could not load settings. Please refresh the page.'));
+  }, [toast]);
 
   const debouncedSave = useCallback(
     (data) => {
@@ -40,13 +44,8 @@ export const InvoicePreferences = () => {
   };
 
   if (!profile) return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between mb-8">
-        <div className="space-y-2">
-          <Skeleton className="h-7 w-48" />
-          <Skeleton className="h-4 w-64" />
-        </div>
-      </div>
+    <div className="max-w-5xl mx-auto space-y-6">
+      <PageHeader />
       <Card className="p-6">
         <Skeleton className="h-4 w-40 mb-6" />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -95,18 +94,10 @@ export const InvoicePreferences = () => {
   };
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-2xl font-display font-bold text-ink">Invoice Preferences</h1>
-          <p className="text-sm text-ink2 mt-1">Configure how your invoices look and behave.</p>
-        </div>
-        {saveStatus && (
-          <span className="text-xs font-bold text-ink3 bg-row-alt px-3 py-1 rounded-full animate-fade-in">
+    <div className="max-w-5xl mx-auto">
+      <PageHeader actions={saveStatus && (<span className="text-xs font-bold text-ink3 bg-row-alt px-3 py-1 rounded-full animate-fade-in">
             {saveStatus}
-          </span>
-        )}
-      </div>
+          </span>)} />
 
       <div className="space-y-6">
         <Card className="p-6">
@@ -135,9 +126,10 @@ export const InvoicePreferences = () => {
                 onChange={handleChange}
                 className="w-full border border-bb rounded p-2.5 text-sm outline-none focus:border-navy transition-colors bg-white"
               >
-                <option value="inclusive">Tax Inclusive</option>
-                <option value="exclusive">Tax Exclusive</option>
-                <option value="none">No Tax (Composition Scheme)</option>
+                <option value="inclusive">Tax Inclusive (prices include GST)</option>
+                <option value="exclusive">Tax Exclusive (GST added on top)</option>
+                <option value="composition">Composition Scheme (Bill of Supply)</option>
+                <option value="none">No GST (not registered)</option>
               </select>
               <p className="text-xs text-ink2 mt-1.5">This will be auto-selected for new invoices.</p>
             </div>

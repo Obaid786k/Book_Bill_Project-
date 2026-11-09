@@ -27,6 +27,12 @@ export default {
         'red-bg': 'var(--red-bg)',
         green: 'var(--green)',
         'row-alt': 'var(--row-alt)',
+        'navy-900': 'var(--navy-900)',
+        'navy-300': 'var(--navy-300)',
+        'navy-100': 'var(--navy-100)',
+        'chart-grid': 'var(--chart-grid)',
+        'nav-icon': 'var(--nav-icon)',
+        divider: 'var(--divider)',
       },
       fontFamily: {
         body: ['var(--f-body)', 'sans-serif'],

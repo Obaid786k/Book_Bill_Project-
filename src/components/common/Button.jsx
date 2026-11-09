@@ -24,11 +24,12 @@ export const Button = ({
   const variantClasses = {
     primary: "bg-gold text-white hover:opacity-90",
     secondary: "bg-transparent border-solid border border-navy text-navy hover:bg-row-alt",
+    navy: "bg-navy text-white hover:opacity-90",
     danger: "bg-red text-white hover:opacity-90",
     // Standard light-theme versions for general app usage
     outline: "bg-transparent text-ink border-solid border border-bb hover:bg-row-alt",
     ghost: "bg-transparent text-ink hover:bg-row-alt",
-    'ghost-danger': "bg-transparent text-rose hover:bg-red-bg",
+    'ghost-danger': "bg-transparent text-red hover:bg-red-bg",
     dashed: "bg-green/10 text-green border border-dashed border-green/30 hover:bg-green/20",
     // Dark-theme versions exactly matching reference invoice toolbar
     'toolbar-outline': "bg-transparent text-white/80 border-solid border border-white/20 hover:bg-white/10",

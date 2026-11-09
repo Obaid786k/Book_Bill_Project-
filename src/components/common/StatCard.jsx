@@ -1,23 +1,39 @@
 import React from 'react';
-import { Card } from './Card';
 import { clsx } from 'clsx';
 
-export const StatCard = ({ title, value, icon: Icon, trend, className, compact = false }) => {
+// One number card for the whole app (Dashboard, Insights, Bill History, Account ...).
+// trend accepts: 'up' | 'down' (+ trendValue), a number (%), or { isPositive, value }.
+const readTrend = (trend, trendValue) => {
+  if (trend == null || trend === false) return null;
+  if (typeof trend === 'object') return { up: !!trend.isPositive, text: trend.value };
+  if (typeof trend === 'number') return { up: trend >= 0, text: `${Math.abs(trend)}%` };
+  if (trend === 'up' || trend === 'down') return trendValue ? { up: trend === 'up', text: trendValue } : null;
+  return null;
+};
+
+export const StatCard = ({ title, value, subtitle, subClass = 'text-ink2', icon: Icon, trend, trendValue, className, compact = false }) => {
+  const t = readTrend(trend, trendValue);
   return (
-    <Card className={clsx(compact ? "p-4" : "p-5", "flex flex-col", className)}>
-      <div className={clsx("flex items-start justify-between", compact ? "mb-2" : "mb-3")}>
-        <h3 className="text-ink3 font-bold text-[11px] uppercase tracking-[0.5px]">{title}</h3>
-        {Icon && <Icon size={compact ? 14 : 16} className="text-navy-lt opacity-70" />}
-      </div>
-      <div className={clsx("font-bold text-navy tracking-tight font-mono", compact ? "text-[20px]" : "text-[22px]")}>
-        {value}
-      </div>
-      {trend && (
-        <div className={clsx("text-[11.5px] mt-2 font-medium flex items-center gap-1", trend.isPositive ? "text-green" : "text-red")}>
-          <span>{trend.isPositive ? "↑" : "↓"}</span>
-          <span>{trend.value}</span>
-        </div>
+    <div
+      className={clsx(
+        'bg-paper border border-bb2 border-t-[3px] border-t-navy rounded-[12px] flex flex-col min-w-0',
+        compact ? 'px-4 pt-3 pb-3.5' : 'px-[18px] pt-[14px] pb-4',
+        className
       )}
-    </Card>
+    >
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-[12.5px] font-medium text-ink2">{title}</p>
+        {Icon && <Icon size={16} className="text-nav-icon shrink-0" />}
+      </div>
+      <p className={clsx('font-bold text-navy-900 tabular-nums leading-tight mt-1 truncate', compact ? 'text-[22px]' : 'text-[28px]')}>
+        {value}
+      </p>
+      {(t || subtitle) && (
+        <p className="text-[12px] mt-1 flex flex-wrap items-center gap-x-1.5">
+          {t && <span className={clsx('font-semibold', t.up ? 'text-green' : 'text-red')}>{t.up ? '↑' : '↓'} {t.text}</span>}
+          {subtitle && <span className={subClass}>{subtitle}</span>}
+        </p>
+      )}
+    </div>
   );
 };

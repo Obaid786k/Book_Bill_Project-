@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { accountService } from '../../services/accountService';
+import { PageHeader } from '../../components/common/PageHeader';
+
+import { accountService, formatBytes } from '../../services/accountService';
 import { StatCard } from '../../components/common/StatCard';
 import { Card } from '../../components/common/Card';
 import { Database, FileText, Package, LayoutTemplate, Clock, ShieldCheck, Monitor, Smartphone } from 'lucide-react';
@@ -17,11 +19,8 @@ export const AccountOverview = () => {
   }, []);
 
   if (!data) return (
-    <div>
-      <div className="mb-8 space-y-2">
-        <Skeleton className="h-7 w-44" />
-        <Skeleton className="h-4 w-64" />
-      </div>
+    <div className="max-w-5xl mx-auto">
+      <PageHeader />
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
         <Skeleton className="h-24" /><Skeleton className="h-24" /><Skeleton className="h-24" />
       </div>
@@ -33,30 +32,26 @@ export const AccountOverview = () => {
   );
 
   return (
-    <div>
-      <div className="mb-8">
-        <h1 className="text-2xl font-display font-bold text-ink">Account Overview</h1>
-        <p className="text-sm text-ink2 mt-1">Summary of your account health and system usage.</p>
-      </div>
+    <div className="max-w-5xl mx-auto">
+      <PageHeader />
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
         <StatCard 
-          title="Storage Used" 
-          value={`${(data.storageUsedMb / 1024).toFixed(2)} GB`} 
-          subtitle={`of ${(data.storageTotalMb / 1024).toFixed(2)} GB total`}
+          title="Data stored"
+          value={formatBytes(data.storageUsedBytes)}
+          subtitle="Approx. size of your bills, products and drafts"
           icon={Database}
-          trend={12}
         />
         <StatCard 
           title="Total Bills" 
           value={data.billsCount} 
-          subtitle="Generated in lifetime"
+          subtitle="All bills, including cancelled"
           icon={FileText}
         />
         <StatCard 
           title="Total Products" 
           value={data.productCount} 
-          subtitle="Active items in inventory"
+          subtitle="Items in your catalogue"
           icon={Package}
         />
       </div>
@@ -98,7 +93,7 @@ export const AccountOverview = () => {
                 <ShieldCheck size={16} />
               </div>
               <div>
-                <p className="text-xs text-ink2">Current Plan</p>
+                <p className="text-xs text-ink2">Account</p>
                 <p className="text-sm font-bold text-navy">{data.accountStatus}</p>
               </div>
             </div>

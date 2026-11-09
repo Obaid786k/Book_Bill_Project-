@@ -1,31 +1,77 @@
 import React, { useState, useEffect } from 'react';
 import { EmptyState } from '../../../components/common/EmptyState';
+import { ShoppingCart, Trash2, Plus } from 'lucide-react';
 import { Button } from '../../../components/common/Button';
-import { ShoppingCart, Plus, Trash2 } from 'lucide-react';
 import { productService } from '../../../services/productService';
+import { GST_RATES, UNITS, withCurrent } from '../../../utils/constants';
 
-export const ItemsTable = ({ items, settings, onItemChange, onAddItem, onRemoveItem }) => {
+const GstSelect = ({ item, onItemChange }) => (
+  <select
+    className="fg"
+    value={String(item.gp)}
+    onChange={(e) => onItemChange(item.id, 'gp', e.target.value)}
+    style={{ width: '100%', borderBottom: 'none', fontSize: '10.5px' }}
+  >
+    {withCurrent(GST_RATES, item.gp).map(r => <option key={r} value={r}>{r}%</option>)}
+  </select>
+);
+
+// Mouse-wheel over a focused number box must not change the value.
+const stopWheel = (e) => e.currentTarget.blur();
+
+// Click / double-click / Tab into a number box selects its value, so typing REPLACES the
+// default (1 or 0) instead of adding to it ("0" + "5" = "05").
+const selectAll = (e) => {
+  const el = e.currentTarget;
+  requestAnimationFrame(() => { try { el.select(); } catch { /* ignore */ } });
+};
+// A zero rate / discount is shown as a grey "0" hint, so the box is empty when you start typing.
+const hideZero = (v) => (v === 0 || v === '0' ? '' : v);
+
+// focusTick: increases each time the user adds a row -> cursor goes to that row's item name.
+export const ItemsTable = ({ items, settings, onItemChange, onAddItem, onRemoveItem, focusTick = 0, hsnSuggestions = [] }) => {
   const { gstOn, tt } = settings;
+  const inclusive = gstOn && settings.priceMode === 'inclusive';
   const [catalog, setCatalog] = useState([]);
-  const bottomRef = React.useRef(null);
-  const prevItemsLength = React.useRef(items.length);
+  const tableRef = React.useRef(null);
+  const focusRowName = (idx) => {
+    tableRef.current?.querySelector(`[data-row-name="${idx}"]`)?.focus();
+  };
+
+  // Enter in a row: go to the next row's item name; on the last row add a new row.
+  const onRowKeyDown = (e, idx) => {
+    if (e.key !== 'Enter' || e.nativeEvent.isComposing || e.ctrlKey || e.metaKey) return;
+    if (e.target.tagName === 'BUTTON') return; // Enter on the delete button deletes
+    // Item name: let Enter pick a product suggestion first, then move on to Qty.
+    if (e.target.hasAttribute('data-row-name')) {
+      setTimeout(() => tableRef.current?.querySelector(`[data-row-qty="${idx}"]`)?.focus(), 0);
+      return;
+    }
+    e.preventDefault();
+    if (idx === items.length - 1) onAddItem();
+    else focusRowName(idx + 1);
+  };
 
   useEffect(() => {
-    productService.getProducts().then(setCatalog);
+    // Catalog is only for autocomplete — billing still works without it.
+    productService.getProducts().then(setCatalog).catch(() => setCatalog([]));
   }, []);
 
+  // New row from the user: cursor into its name and bring it to the middle of the screen.
   useEffect(() => {
-    if (items.length > prevItemsLength.current) {
-      setTimeout(() => {
-        bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      }, 50);
-    }
-    prevItemsLength.current = items.length;
-  }, [items.length]);
+    if (!focusTick) return;
+    const t = setTimeout(() => {
+      const el = tableRef.current?.querySelector(`[data-row-name="${items.length - 1}"]`);
+      el?.focus({ preventScroll: true });
+      el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 30);
+    return () => clearTimeout(t);
+  }, [focusTick]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleNameChange = (id, val) => {
     onItemChange(id, 'name', val);
-    const match = catalog.find(p => p.name === val);
+    const key = String(val).trim().toLowerCase();
+    const match = key && catalog.find(p => String(p.name).trim().toLowerCase() === key);
     if (match) {
       onItemChange(id, 'rate', match.rate || 0);
       onItemChange(id, 'unit', match.unit || 'Pcs');
@@ -38,15 +84,16 @@ export const ItemsTable = ({ items, settings, onItemChange, onAddItem, onRemoveI
 
   return (
     <>
-      <table className="itbl">
+      <div className="itbl-wrap">
+      <table className="itbl" ref={tableRef}>
         <thead>
           <tr>
             <th className="sno">#</th>
             <th style={{ textAlign: 'left', minWidth: '110px' }}>Item / Description</th>
             {gstOn && <th className="gc" style={{ minWidth: '65px' }}>HSN / SAC</th>}
             <th style={{ minWidth: '42px' }}>Qty</th>
-            <th style={{ minWidth: '46px' }}>Unit</th>
-            <th style={{ minWidth: '68px' }}>Rate (₹)</th>
+            <th style={{ minWidth: '66px' }}>Unit</th>
+            <th style={{ minWidth: '68px' }}>{inclusive ? 'Rate incl. GST (₹)' : 'Rate (₹)'}</th>
             <th style={{ minWidth: '48px' }}>Disc %</th>
             <th style={{ minWidth: '75px' }}>{gstOn ? "Taxable Amt" : "Amount (₹)"}</th>
             
@@ -85,11 +132,13 @@ export const ItemsTable = ({ items, settings, onItemChange, onAddItem, onRemoveI
             </tr>
           )}
           {items.map((item, idx) => (
-            <tr key={item.id || idx}>
+            <tr key={item.id || idx} onKeyDown={(e) => onRowKeyDown(e, idx)}>
               <td className="sno">{idx + 1}</td>
               <td className="nc">
                 <input 
                   list="product-catalog"
+                  data-row-name={idx}
+                  aria-label={`Item ${idx + 1} name`}
                   className="fn" 
                   value={item.name} 
                   onChange={(e) => handleNameChange(item.id, e.target.value)} 
@@ -100,6 +149,7 @@ export const ItemsTable = ({ items, settings, onItemChange, onAddItem, onRemoveI
               {gstOn && (
                 <td className="gc">
                   <input 
+                    list="recall-hsn" autoComplete="off"
                     className="fh" 
                     value={item.hsn} 
                     onChange={(e) => onItemChange(item.id, 'hsn', e.target.value)} 
@@ -112,10 +162,13 @@ export const ItemsTable = ({ items, settings, onItemChange, onAddItem, onRemoveI
               <td>
                 <input 
                   className="fq" 
-                  type="number" 
+                  type="number"
+                  data-row-qty={idx} 
+                  onWheel={stopWheel}
                   min="0" 
                   step="any" 
-                  value={item.qty} 
+                  value={item.qty}
+                  onFocus={selectAll} 
                   onChange={(e) => onItemChange(item.id, 'qty', e.target.value)} 
                 />
               </td>
@@ -126,7 +179,7 @@ export const ItemsTable = ({ items, settings, onItemChange, onAddItem, onRemoveI
                   onChange={(e) => onItemChange(item.id, 'unit', e.target.value)}
                   style={{ width: '100%', borderBottom: 'none', fontSize: '10.5px' }}
                 >
-                  {['Pcs', 'Kg', 'Gram', 'Ltr', 'Box', 'Dozen', 'Meter', 'Pack', 'Nos', 'Set', 'Pair'].map(u => (
+                  {withCurrent(UNITS, item.unit).map(u => (
                     <option key={u}>{u}</option>
                   ))}
                 </select>
@@ -135,9 +188,12 @@ export const ItemsTable = ({ items, settings, onItemChange, onAddItem, onRemoveI
                 <input 
                   className="fr" 
                   type="number" 
+                  onWheel={stopWheel}
                   min="0" 
                   step="any" 
-                  value={item.rate} 
+                  value={hideZero(item.rate)}
+                  placeholder="0"
+                  onFocus={selectAll} 
                   onChange={(e) => onItemChange(item.id, 'rate', e.target.value)} 
                 />
               </td>
@@ -145,10 +201,13 @@ export const ItemsTable = ({ items, settings, onItemChange, onAddItem, onRemoveI
                 <input 
                   className="fd" 
                   type="number" 
+                  onWheel={stopWheel}
                   min="0" 
                   max="100" 
                   step="any" 
-                  value={item.disc} 
+                  value={hideZero(item.disc)}
+                  placeholder="0"
+                  onFocus={selectAll} 
                   onChange={(e) => onItemChange(item.id, 'disc', e.target.value)} 
                 />
               </td>
@@ -157,18 +216,7 @@ export const ItemsTable = ({ items, settings, onItemChange, onAddItem, onRemoveI
               {gstOn && tt === 'intra' && (
                 <>
                   <td className="gc intra">
-                    <select 
-                      className="fg" 
-                      value={item.gp} 
-                      onChange={(e) => onItemChange(item.id, 'gp', e.target.value)}
-                      style={{ width: '100%', borderBottom: 'none', fontSize: '10.5px' }}
-                    >
-                      <option value="0">0%</option>
-                      <option value="5">5%</option>
-                      <option value="12">12%</option>
-                      <option value="18">18%</option>
-                      <option value="28">28%</option>
-                    </select>
+                    <GstSelect item={item} onItemChange={onItemChange} />
                   </td>
                   <td className="comp gc intra fca">{item.fca}</td>
                   <td className="comp gc intra fsp">{item.fsp}</td>
@@ -179,18 +227,7 @@ export const ItemsTable = ({ items, settings, onItemChange, onAddItem, onRemoveI
               {gstOn && tt === 'inter' && (
                 <>
                   <td className="gc inter">
-                    <select 
-                      className="fg" 
-                      value={item.gp} 
-                      onChange={(e) => onItemChange(item.id, 'gp', e.target.value)}
-                      style={{ width: '100%', borderBottom: 'none', fontSize: '10.5px' }}
-                    >
-                      <option value="0">0%</option>
-                      <option value="5">5%</option>
-                      <option value="12">12%</option>
-                      <option value="18">18%</option>
-                      <option value="28">28%</option>
-                    </select>
+                    <GstSelect item={item} onItemChange={onItemChange} />
                   </td>
                   <td className="comp gc inter fia">{item.fia}</td>
                 </>
@@ -210,18 +247,21 @@ export const ItemsTable = ({ items, settings, onItemChange, onAddItem, onRemoveI
           ))}
         </tbody>
       </table>
+      </div>
 
       <datalist id="product-catalog">
         {catalog.map(p => (
-          <option key={p.id} value={p.name} />
+          <option key={p.id} value={p.name} label={`₹${p.rate}${gstOn ? ` · GST ${p.gp}%` : ''}${p.unit ? ` · ${p.unit}` : ''}`} />
         ))}
       </datalist>
+      <datalist id="recall-hsn">{hsnSuggestions.map(v => <option key={v} value={v} />)}</datalist>
 
-      <div className="add-row-wrap no-print mt-4 mb-2 flex justify-start" ref={bottomRef}>
-        <Button variant="primary" onClick={onAddItem} className="gap-2 px-4 shadow-sm font-bold tracking-wide">
-          <Plus size={16} /> Add New Item
+      <div className="add-row-wrap no-print mt-4 mb-2 flex justify-start">
+        <Button variant="outline" onClick={onAddItem} className="gap-2 px-4 font-semibold">
+          <Plus size={16} /> Add item
         </Button>
       </div>
+
     </>
   );
 };

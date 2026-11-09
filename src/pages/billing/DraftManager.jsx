@@ -1,5 +1,8 @@
 import React, { useEffect, useState } from 'react';
+import { PageHeader } from '../../components/common/PageHeader';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
+import { ALERT_KEYS } from '../../hooks/useAlerts';
 import { billService } from '../../services/billService';
 import { DataTable } from '../../components/common/DataTable';
 import { Button } from '../../components/common/Button';
@@ -13,8 +16,13 @@ export const DraftManager = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   const navigate = useNavigate();
 
+  const queryClient = useQueryClient();
   const loadDrafts = () => {
-    billService.getDrafts().then(setDrafts);
+    billService.getDrafts().then((ds) => {
+      setDrafts(ds);
+      queryClient.setQueryData(ALERT_KEYS.drafts, ds); // sidebar badge + bell
+    })
+      .catch(() => toast.error('Could not load drafts. Please refresh the page.'));
   };
 
   useEffect(() => {
@@ -32,7 +40,9 @@ export const DraftManager = () => {
       await billService.deleteDraft(deleteId);
       setDeleteId(null);
       loadDrafts();
-      toast('✅ Draft deleted.');
+      toast.success('Draft deleted.');
+    } catch {
+      toast.error('Failed to delete draft. Please try again.');
     } finally {
       setIsDeleting(false);
     }
@@ -67,12 +77,7 @@ export const DraftManager = () => {
 
   return (
     <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-2xl font-display font-bold text-ink">Drafts</h1>
-          <p className="text-sm text-ink2 mt-1">Manage unfinished bills.</p>
-        </div>
-      </div>
+      <PageHeader />
 
       <DataTable 
         data={drafts} 

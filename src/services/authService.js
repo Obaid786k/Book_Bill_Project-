@@ -4,27 +4,37 @@ import { handleSupabaseError } from '../utils/handleSupabaseError';
 // Fetches the profile + business row for the currently logged-in user,
 // shaped exactly like the old mock's user object so nothing else in the
 // app (authStore, pages) needs to change.
+// Profile + the business "setup done" flag in ONE request (was two round trips).
+const PROFILE_SELECT = 'full_name, is_super_admin, business_id, business:businesses!profiles_business_id_fkey(has_completed_setup)';
+
 const buildUserShape = async (authUser) => {
   let { data: profile, error: profileError } = await supabase
     .from('profiles')
-    .select('full_name, is_super_admin, business_id')
+    .select(PROFILE_SELECT)
     .eq('id', authUser.id)
     .single();
+
+  // If the joined read is ever rejected (relationship error), fall back to the plain read.
+  if (profileError && ['PGRST200', 'PGRST201'].includes(profileError.code)) {
+    ({ data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('full_name, is_super_admin, business_id')
+      .eq('id', authUser.id)
+      .single());
+  }
 
   // Self-heal: If profile is missing (PGRST116 or multiple rows coercion error on 0 rows),
   // it means the user was created before the trigger or manually.
   if (profileError && (profileError.code === 'PGRST116' || profileError.message.includes('coerce'))) {
-    // Attempt to manually create missing rows (user was created before trigger was set up)
-    const { error: insertProfileErr } = await supabase.from('profiles').insert({ id: authUser.id, full_name: authUser.user_metadata?.full_name || '' });
-    if (insertProfileErr) console.warn('[authService] self-heal profile insert failed:', insertProfileErr);
-    
-    const { error: insertBizErr } = await supabase.from('businesses').insert({ owner_id: authUser.id });
-    if (insertBizErr) console.warn('[authService] self-heal business insert failed:', insertBizErr);
+    // Create the missing profile/business rows server-side (direct client
+    // inserts into these tables are not permitted). See 0006 migration.
+    const { error: healErr } = await supabase.rpc('ensure_user_profile');
+    if (healErr) console.warn('[authService] ensure_user_profile failed:', healErr);
     
     // Fetch again
     const retry = await supabase
       .from('profiles')
-      .select('full_name, is_super_admin, business_id')
+      .select(PROFILE_SELECT)
       .eq('id', authUser.id)
       .single();
     
@@ -34,8 +44,9 @@ const buildUserShape = async (authUser) => {
 
   if (profileError) throw handleSupabaseError(profileError, { table: 'profiles', action: 'select' });
 
-  let hasCompletedSetup = false;
-  if (profile.business_id) {
+  let hasCompletedSetup = profile.business?.has_completed_setup || false;
+  // Safety net: if the joined value didn't come back, ask the old way.
+  if (profile.business_id && !profile.business) {
     const { data: business } = await supabase
       .from('businesses')
       .select('has_completed_setup')
@@ -44,11 +55,16 @@ const buildUserShape = async (authUser) => {
     hasCompletedSetup = business?.has_completed_setup || false;
   }
 
+  // Name/photo fallbacks: saved profile -> Google / sign-up metadata -> email.
+  const meta = authUser.user_metadata || {};
   return {
     id: authUser.id,
     email: authUser.email,
-    name: profile.full_name || '',
-    isAdmin: profile.is_super_admin || false,
+    pendingEmail: authUser.new_email || null,
+    name: profile.full_name || meta.full_name || meta.name || (authUser.email || '').split('@')[0],
+    avatarUrl: meta.avatar_url || meta.picture || null,
+    // Role from the database: profiles.is_super_admin (default false; set true in Supabase).
+    isAdmin: !!profile.is_super_admin,
     hasCompletedSetup,
     businessId: profile.business_id || null,
   };
@@ -85,22 +101,6 @@ export const authService = {
   logout: async () => {
     const { error } = await supabase.auth.signOut();
     if (error) throw handleSupabaseError(error, { table: 'auth', action: 'logout' });
-  },
-
-  checkEmailStatus: async (email) => {
-    if (!email) return { exists: false, is_confirmed: false };
-    try {
-      const { data, error } = await supabase.rpc('check_user_verification_status', {
-        p_email: email.trim().toLowerCase(),
-      });
-      if (error) {
-        console.warn('[authService] check_user_verification_status RPC warning:', error.message);
-        return { exists: false, is_confirmed: false, rpcMissing: true };
-      }
-      return data || { exists: false, is_confirmed: false };
-    } catch {
-      return { exists: false, is_confirmed: false };
-    }
   },
 
   resetPassword: async (email) => {
